@@ -1,0 +1,77 @@
+name: Integração contínua
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  formatacao:
+    name: Formatação
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar clang-format
+        run: clang-format --dry-run --Werror src/mythara.c
+
+  linux:
+    name: Linux — áudio ${{ matrix.audio }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        audio: ["ON", "OFF"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar dependências
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libasound2-dev
+      - name: Configurar
+        run: >-
+          cmake -S . -B build/ci
+          -DCMAKE_BUILD_TYPE=Release
+          -DMYTHARA_AUDIO=${{ matrix.audio }}
+          -DMYTHARA_AVISOS_COMO_ERROS=ON
+      - name: Compilar
+        run: cmake --build build/ci --parallel
+      - name: Testar
+        run: ctest --test-dir build/ci --output-on-failure
+
+  sanitizadores:
+    name: ASan e UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar dependências
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev clang
+      - name: Compilar
+        run: >-
+          clang -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror
+          -DMYTHARA_SEM_AUDIO -fsanitize=address,undefined
+          src/mythara.c -o mythara-sanitizado -lX11 -lm -pthread
+      - name: Testar
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1
+        run: ./mythara-sanitizado --autoteste
+
+  windows:
+    name: Windows — MinGW-w64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar compilador cruzado
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
+      - name: Compilar
+        run: >-
+          x86_64-w64-mingw32-gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror
+          src/mythara.c -o mythara.exe
+          -lgdi32 -luser32 -lshell32 -lwinmm -lm
+      - name: Publicar binário de verificação
+        uses: actions/upload-artifact@v4
+        with:
+          name: mythara-windows
+          path: mythara.exe
+          if-no-files-found: error

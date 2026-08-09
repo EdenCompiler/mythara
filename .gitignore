@@ -1,0 +1,27 @@
+# Builds e pacotes
+/build/
+/dist/
+/mythara
+/mythara.exe
+
+# Projetos criados ao executar na raiz
+/projeto_mythara/
+/exportacao_mythara/
+
+# Temporários, cobertura e depuração
+*.tmp
+*.log
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+compile_commands.json
+
+# IDEs e sistema operacional
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

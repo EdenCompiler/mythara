@@ -1,0 +1,12 @@
+* text=auto eol=lf
+*.c text diff=cpp
+*.h text diff=cpp
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.qoi binary
+*.tga binary
+*.wav binary
+*.myr binary
+*.mys binary
+*.myt binary

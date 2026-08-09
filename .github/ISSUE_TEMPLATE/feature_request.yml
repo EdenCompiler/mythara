@@ -1,0 +1,29 @@
+name: Propor uma funcionalidade
+description: Sugira uma melhoria para o editor, runtime ou infraestrutura.
+title: "[Ideia]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema ou necessidade
+      description: Qual fluxo seria melhorado?
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Solução proposta
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+  - type: checkboxes
+    id: escopo
+    attributes:
+      label: Compatibilidade com o projeto
+      options:
+        - label: A proposta preserva o motor em um único arquivo C.
+        - label: A proposta considera Linux e Windows.

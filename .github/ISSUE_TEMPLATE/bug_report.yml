@@ -1,0 +1,47 @@
+name: Relatar um bug
+description: Informe um comportamento incorreto e como reproduzi-lo.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Obrigado por ajudar a melhorar a Mythara.
+  - type: input
+    id: versao
+    attributes:
+      label: Versão ou commit
+      placeholder: 3.0.0 ou hash do commit
+    validations:
+      required: true
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema operacional
+      options:
+        - Linux
+        - Windows
+        - Outro
+    validations:
+      required: true
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Descrição
+      description: O que aconteceu e o que deveria ter acontecido?
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Passos para reproduzir
+      placeholder: |
+        1. Abra...
+        2. Clique...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs e informações adicionais
+      render: shell

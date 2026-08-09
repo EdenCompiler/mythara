@@ -1,0 +1,63 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 16,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "desenvolvimento",
+      "displayName": "Desenvolvimento com áudio",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/desenvolvimento",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "MYTHARA_AUDIO": "ON",
+        "MYTHARA_AVISOS_COMO_ERROS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release com áudio",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MYTHARA_AUDIO": "ON"
+      }
+    },
+    {
+      "name": "sem-audio",
+      "displayName": "Release sem ALSA",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/sem-audio",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MYTHARA_AUDIO": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "desenvolvimento", "configurePreset": "desenvolvimento" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "sem-audio", "configurePreset": "sem-audio" }
+  ],
+  "testPresets": [
+    {
+      "name": "desenvolvimento",
+      "configurePreset": "desenvolvimento",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "sem-audio",
+      "configurePreset": "sem-audio",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}
