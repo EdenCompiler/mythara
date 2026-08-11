@@ -10,32 +10,79 @@ typedef struct {
     char nome[48];
     Cor fundo, painel, painel_elevado, controle, controle_sobre, selecao, borda, texto, texto_suave,
         destaque, perigo, aviso, sucesso;
+    Cor barra, lateral, lateral_sobre, canvas, sobreposicao, foco, desabilitado;
     int escala_percentual, espacamento, altura_controle, espessura_borda, raio_visual;
+    int preset, movimento_reduzido;
 } TemaInterface;
 
 static TemaInterface tema_ativo;
 
-static void iniciar_tema_padrao(void) {
+typedef enum { TEMA_ARCANO, TEMA_PERGAMINHO, TEMA_PERSONALIZADO } PresetTema;
+
+static void iniciar_tema_arcano(void) {
     memset(&tema_ativo, 0, sizeof(tema_ativo));
-    copiar_texto(tema_ativo.nome, sizeof(tema_ativo.nome), "Arcana Moderna");
-    tema_ativo.fundo = cor_rgb(16, 19, 26);
-    tema_ativo.painel = cor_rgb(27, 33, 48);
-    tema_ativo.painel_elevado = cor_rgb(38, 45, 64);
-    tema_ativo.controle = cor_rgb(48, 56, 78);
-    tema_ativo.controle_sobre = cor_rgb(64, 72, 103);
-    tema_ativo.selecao = cor_rgb(83, 76, 160);
-    tema_ativo.borda = cor_rgb(75, 81, 112);
-    tema_ativo.texto = cor_rgb(232, 234, 246);
-    tema_ativo.texto_suave = cor_rgb(162, 169, 196);
-    tema_ativo.destaque = cor_rgb(123, 115, 232);
-    tema_ativo.perigo = cor_rgb(224, 91, 118);
-    tema_ativo.aviso = cor_rgb(235, 188, 84);
-    tema_ativo.sucesso = cor_rgb(91, 194, 155);
+    copiar_texto(tema_ativo.nome, sizeof(tema_ativo.nome), "Arcano Noturno");
+    tema_ativo.fundo = cor_rgb(12, 13, 22);
+    tema_ativo.painel = cor_rgb(22, 24, 38);
+    tema_ativo.painel_elevado = cor_rgb(31, 34, 52);
+    tema_ativo.controle = cor_rgb(40, 43, 64);
+    tema_ativo.controle_sobre = cor_rgb(55, 52, 83);
+    tema_ativo.selecao = cor_rgb(73, 56, 118);
+    tema_ativo.borda = cor_rgb(72, 68, 99);
+    tema_ativo.texto = cor_rgb(242, 236, 221);
+    tema_ativo.texto_suave = cor_rgb(174, 166, 187);
+    tema_ativo.destaque = cor_rgb(183, 132, 255);
+    tema_ativo.perigo = cor_rgb(225, 82, 112);
+    tema_ativo.aviso = cor_rgb(225, 174, 79);
+    tema_ativo.sucesso = cor_rgb(92, 192, 151);
+    tema_ativo.barra = cor_rgb(17, 18, 30);
+    tema_ativo.lateral = cor_rgb(18, 19, 32);
+    tema_ativo.lateral_sobre = cor_rgb(46, 40, 68);
+    tema_ativo.canvas = cor_rgb(9, 10, 17);
+    tema_ativo.sobreposicao = cor_rgb(8, 9, 15);
+    tema_ativo.foco = cor_rgb(235, 190, 104);
+    tema_ativo.desabilitado = cor_rgb(82, 81, 96);
     tema_ativo.escala_percentual = 100;
-    tema_ativo.espacamento = 6;
-    tema_ativo.altura_controle = 27;
+    tema_ativo.espacamento = 7;
+    tema_ativo.altura_controle = 29;
     tema_ativo.espessura_borda = 1;
-    tema_ativo.raio_visual = 2;
+    tema_ativo.raio_visual = 3;
+    tema_ativo.preset = TEMA_ARCANO;
+}
+
+static void iniciar_tema_pergaminho(void) {
+    memset(&tema_ativo, 0, sizeof(tema_ativo));
+    copiar_texto(tema_ativo.nome, sizeof(tema_ativo.nome), "Pergaminho Dourado");
+    tema_ativo.fundo = cor_rgb(211, 195, 160);
+    tema_ativo.painel = cor_rgb(231, 218, 184);
+    tema_ativo.painel_elevado = cor_rgb(244, 233, 204);
+    tema_ativo.controle = cor_rgb(218, 199, 158);
+    tema_ativo.controle_sobre = cor_rgb(232, 211, 164);
+    tema_ativo.selecao = cor_rgb(190, 155, 104);
+    tema_ativo.borda = cor_rgb(116, 88, 65);
+    tema_ativo.texto = cor_rgb(48, 35, 32);
+    tema_ativo.texto_suave = cor_rgb(100, 77, 66);
+    tema_ativo.destaque = cor_rgb(116, 62, 126);
+    tema_ativo.perigo = cor_rgb(157, 49, 57);
+    tema_ativo.aviso = cor_rgb(166, 103, 31);
+    tema_ativo.sucesso = cor_rgb(50, 116, 78);
+    tema_ativo.barra = cor_rgb(67, 43, 50);
+    tema_ativo.lateral = cor_rgb(78, 51, 56);
+    tema_ativo.lateral_sobre = cor_rgb(105, 69, 69);
+    tema_ativo.canvas = cor_rgb(174, 157, 127);
+    tema_ativo.sobreposicao = cor_rgb(50, 35, 39);
+    tema_ativo.foco = cor_rgb(116, 62, 126);
+    tema_ativo.desabilitado = cor_rgb(149, 135, 115);
+    tema_ativo.escala_percentual = 100;
+    tema_ativo.espacamento = 7;
+    tema_ativo.altura_controle = 29;
+    tema_ativo.espessura_borda = 1;
+    tema_ativo.raio_visual = 3;
+    tema_ativo.preset = TEMA_PERGAMINHO;
+}
+
+static void iniciar_tema_padrao(void) {
+    iniciar_tema_arcano();
 }
 
 typedef struct {
@@ -56,7 +103,11 @@ typedef struct {
     int id_ativo;
     int id_foco;
     int proximo_id;
+    int escopo_id;
     const char *rotulo_quente;
+    int primeiro_foco, ultimo_foco, foco_anterior;
+    int navegar_frente, navegar_tras, aguarda_proximo;
+    int campo_texto_focado;
 } Interface;
 
 /* Estado e identificacao dos controles ------------------------------------- */
@@ -70,24 +121,153 @@ static int plataforma_clipboard_copiar(const char *texto);
 static int plataforma_clipboard_colar(char *destino, size_t capacidade);
 
 static int ui_novo_id(Interface *ui) {
-    return ++ui->proximo_id;
+    return ((ui->escopo_id + 1) << 12) | (++ui->proximo_id & 4095);
+}
+
+static int ui_proximo_id_previsto(const Interface *ui) {
+    return ((ui->escopo_id + 1) << 12) | ((ui->proximo_id + 1) & 4095);
+}
+
+static void ui_definir_escopo(Interface *ui, int escopo) {
+    ui->escopo_id = escopo;
+    ui->proximo_id = 0;
+}
+
+typedef enum {
+    ICONE_MENU,
+    ICONE_MAPA,
+    ICONE_EVENTO,
+    ICONE_BANCO,
+    ICONE_RECURSO,
+    ICONE_TEMA,
+    ICONE_PROJETO,
+    ICONE_AJUDA,
+    ICONE_JOGAR,
+    ICONE_SALVAR
+} IconeInterface;
+
+static const uint8_t icones_interface[][8] = {
+    {0x00, 0x7e, 0x00, 0x7e, 0x00, 0x7e, 0x00, 0x00},
+    {0x00, 0x7e, 0x42, 0x5a, 0x5a, 0x42, 0x7e, 0x00},
+    {0x18, 0x3c, 0x7e, 0x5a, 0x7e, 0x3c, 0x18, 0x00},
+    {0x7e, 0x42, 0x5e, 0x52, 0x5e, 0x42, 0x7e, 0x00},
+    {0x3c, 0x42, 0x5a, 0x5a, 0x42, 0x3c, 0x18, 0x18},
+    {0x18, 0x5a, 0x3c, 0x7e, 0x3c, 0x5a, 0x18, 0x00},
+    {0x3c, 0x42, 0x5e, 0x52, 0x5e, 0x42, 0x3c, 0x00},
+    {0x18, 0x00, 0x18, 0x18, 0x18, 0x00, 0x18, 0x00},
+    {0x20, 0x30, 0x38, 0x3c, 0x38, 0x30, 0x20, 0x00},
+    {0x7e, 0x52, 0x52, 0x7e, 0x42, 0x42, 0x7e, 0x00},
+};
+
+static void ui_icone(Tela *t, int x, int y, IconeInterface icone, Cor cor) {
+    const uint8_t *linhas = icones_interface[limitar_int(icone, 0, ICONE_SALVAR)];
+    for (int linha = 0; linha < 8; ++linha)
+        for (int coluna = 0; coluna < 8; ++coluna)
+            if (linhas[linha] & (1u << (7 - coluna)))
+                preencher_retangulo(t, (Retangulo){x + coluna * 2, y + linha * 2, 2, 2}, cor);
+}
+
+typedef struct {
+    int id;
+    int intensidade;
+} AnimacaoControle;
+
+static AnimacaoControle animacoes_controles[128];
+static int ultimo_foco_quadro;
+
+static Cor misturar_cor(Cor a, Cor b, int quantidade) {
+    quantidade = limitar_int(quantidade, 0, 255);
+    unsigned ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+    unsigned br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+    unsigned r = (ar * (255 - quantidade) + br * quantidade) / 255;
+    unsigned g = (ag * (255 - quantidade) + bg * quantidade) / 255;
+    unsigned azul = (ab * (255 - quantidade) + bb * quantidade) / 255;
+    return cor_rgb(r, g, azul);
+}
+
+static int ui_animar_controle(int id, int ativo) {
+    AnimacaoControle *livre = &animacoes_controles[0];
+    for (size_t i = 0; i < sizeof(animacoes_controles) / sizeof(animacoes_controles[0]); ++i) {
+        if (animacoes_controles[i].id == id) {
+            livre = &animacoes_controles[i];
+            break;
+        }
+        if (!animacoes_controles[i].id)
+            livre = &animacoes_controles[i];
+    }
+    livre->id = id;
+    if (tema_ativo.movimento_reduzido)
+        livre->intensidade = ativo ? 255 : 0;
+    else if (ativo)
+        livre->intensidade = limitar_int(livre->intensidade + 34, 0, 255);
+    else
+        livre->intensidade = limitar_int(livre->intensidade - 34, 0, 255);
+    return livre->intensidade;
+}
+
+static int ui_registrar_foco(Interface *ui, int id, int sobre) {
+    if (!ui->primeiro_foco)
+        ui->primeiro_foco = id;
+    if (ui->navegar_tras && ui->id_foco == id)
+        ui->id_foco = ui->foco_anterior ? ui->foco_anterior : ultimo_foco_quadro;
+    if (ui->aguarda_proximo) {
+        ui->id_foco = id;
+        ui->aguarda_proximo = 0;
+    } else if (ui->navegar_frente && ui->id_foco == id)
+        ui->aguarda_proximo = 1;
+    if (sobre && ui->entrada->mouse_pressionado)
+        ui->id_foco = id;
+    ui->foco_anterior = id;
+    ui->ultimo_foco = id;
+    return ui->id_foco == id;
+}
+
+static void ui_preparar_quadro(Interface *ui) {
+    ui->navegar_frente = ui->entrada->teclas_pressionadas[9] && !ui->entrada->shift;
+    ui->navegar_tras = ui->entrada->teclas_pressionadas[9] && ui->entrada->shift;
+    if ((ui->navegar_frente || ui->navegar_tras) && !ui->id_foco)
+        ui->aguarda_proximo = 1;
+}
+
+static void ui_finalizar_quadro(Interface *ui) {
+    if (ui->aguarda_proximo && ui->primeiro_foco)
+        ui->id_foco = ui->primeiro_foco;
+    ultimo_foco_quadro = ui->ultimo_foco;
 }
 
 static int ui_botao(Interface *ui, Retangulo r, const char *rotulo, int selecionado) {
     int id = ui_novo_id(ui);
     int sobre = ponto_em_retangulo(ui->entrada->mouse_x, ui->entrada->mouse_y, r);
+    int focado = ui_registrar_foco(ui, id, sobre);
     Cor fundo = selecionado ? tema_ativo.selecao : tema_ativo.controle;
     if (sobre) {
         ui->id_quente = id;
         ui->rotulo_quente = rotulo;
-        fundo = tema_ativo.controle_sobre;
+        fundo = misturar_cor(fundo, tema_ativo.controle_sobre, ui_animar_controle(id, 1));
+    } else {
+        fundo = misturar_cor(fundo, tema_ativo.controle_sobre, ui_animar_controle(id, 0));
     }
     if (sobre && ui->entrada->mouse_pressionado)
         ui->id_ativo = id;
     preencher_retangulo(ui->tela, r, fundo);
-    contornar_retangulo(ui->tela, r, sobre ? tema_ativo.destaque : tema_ativo.borda);
+    contornar_retangulo(
+        ui->tela, r, focado ? tema_ativo.foco : (sobre ? tema_ativo.destaque : tema_ativo.borda));
     desenhar_texto(ui->tela, r.x + 7, r.y + (r.altura - 7) / 2, rotulo, tema_ativo.texto, 1);
-    return sobre && ui->entrada->mouse_pressionado;
+    return (sobre && ui->entrada->mouse_pressionado) ||
+           (focado &&
+            (ui->entrada->teclas_pressionadas[13] || ui->entrada->teclas_pressionadas[32]));
+}
+
+static int ui_botao_icone(Interface *ui, Retangulo r, IconeInterface icone, const char *rotulo,
+                          int selecionado, int mostrar_rotulo) {
+    int acionado = ui_botao(ui, r, "", selecionado);
+    ui_icone(ui->tela, r.x + 9, r.y + (r.altura - 16) / 2, icone, tema_ativo.texto);
+    if (mostrar_rotulo)
+        desenhar_texto_forte(ui->tela, r.x + 34, r.y + (r.altura - 7) / 2, rotulo, tema_ativo.texto,
+                             1);
+    if (ponto_em_retangulo(ui->entrada->mouse_x, ui->entrada->mouse_y, r))
+        ui->rotulo_quente = rotulo;
+    return acionado;
 }
 
 /* Edicao de texto UTF-8 ----------------------------------------------------- */
@@ -135,10 +315,21 @@ static void campo_inserir(char *texto, size_t capacidade, size_t *cursor, size_t
     *ancora = *cursor;
 }
 
+static uint32_t resumo_texto_interface(const char *texto) {
+    uint32_t resumo = UINT32_C(2166136261);
+    while (*texto) {
+        resumo ^= (unsigned char)*texto++;
+        resumo *= UINT32_C(16777619);
+    }
+    return resumo;
+}
+
 static int ui_campo_base(Interface *ui, Retangulo r, char *texto, size_t capacidade,
                          int multilinha) {
+    uint32_t resumo_anterior = resumo_texto_interface(texto);
     int id = ui_novo_id(ui);
     int sobre = ponto_em_retangulo(ui->entrada->mouse_x, ui->entrada->mouse_y, r);
+    int focado = ui_registrar_foco(ui, id, sobre);
     if (sobre && ui->entrada->mouse_pressionado) {
         ui->id_foco = id;
         estado_campo_texto.foco = id;
@@ -146,8 +337,9 @@ static int ui_campo_base(Interface *ui, Retangulo r, char *texto, size_t capacid
         estado_campo_texto.rolagem = 0;
     }
     preencher_retangulo(ui->tela, r, tema_ativo.fundo);
-    contornar_retangulo(ui->tela, r, ui->id_foco == id ? tema_ativo.destaque : tema_ativo.borda);
+    contornar_retangulo(ui->tela, r, focado ? tema_ativo.foco : tema_ativo.borda);
     if (ui->id_foco == id) {
+        ui->campo_texto_focado = 1;
         if (estado_campo_texto.foco != id) {
             estado_campo_texto.foco = id;
             estado_campo_texto.cursor = estado_campo_texto.ancora = strlen(texto);
@@ -278,7 +470,7 @@ static int ui_campo_base(Interface *ui, Retangulo r, char *texto, size_t capacid
         desenhar_texto(ui->tela, r.x + 5, r.y + 7, visivel, tema_ativo.texto, 1);
         int cursor_x = r.x + 5 + utf8_quantidade(texto, inicio, *cursor) * 6;
         preencher_retangulo(ui->tela, (Retangulo){cursor_x, r.y + 5, 1, 11}, tema_ativo.texto);
-        return 1;
+        return resumo_texto_interface(texto) != resumo_anterior;
     } else {
         char visivel[1024];
         copiar_texto(visivel, sizeof(visivel), texto);
@@ -335,14 +527,19 @@ static int ui_checkbox(Interface *ui, Retangulo r, const char *rotulo, int valor
     int id = ui_novo_id(ui);
     Retangulo caixa = {r.x, r.y, 18, 18};
     int sobre = ponto_em_retangulo(ui->entrada->mouse_x, ui->entrada->mouse_y, r);
+    int focado = ui_registrar_foco(ui, id, sobre);
     preencher_retangulo(ui->tela, caixa, tema_ativo.fundo);
-    contornar_retangulo(ui->tela, caixa, sobre ? tema_ativo.destaque : tema_ativo.borda);
+    contornar_retangulo(ui->tela, caixa,
+                        focado ? tema_ativo.foco
+                               : (sobre ? tema_ativo.destaque : tema_ativo.borda));
     if (valor) {
         preencher_retangulo(ui->tela, (Retangulo){caixa.x + 4, caixa.y + 4, 10, 10},
                             tema_ativo.destaque);
     }
     desenhar_texto(ui->tela, r.x + 25, r.y + 5, rotulo, tema_ativo.texto, 1);
-    if (sobre && ui->entrada->mouse_pressionado) {
+    if ((sobre && ui->entrada->mouse_pressionado) ||
+        (focado &&
+         (ui->entrada->teclas_pressionadas[13] || ui->entrada->teclas_pressionadas[32]))) {
         ui->id_ativo = id;
         return !valor;
     }

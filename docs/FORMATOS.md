@@ -1,8 +1,8 @@
-# Formatos da Mythara 4
+# Formatos da Mythara
 
-Esta é a referência de manutenção dos formatos v4. Todos os inteiros são gravados em ordem
-little-endian e com largura explícita. Textos são UTF-8 prefixados por tamanho; nenhuma estrutura C
-é copiada diretamente para o arquivo.
+Esta é a referência de manutenção dos projetos e saves v4 e dos documentos locais de interface v5.
+Todos os inteiros são gravados em ordem little-endian e com largura explícita. Textos são UTF-8
+prefixados por tamanho; nenhuma estrutura C é copiada diretamente para o arquivo.
 
 ## Projeto `.myr`
 
@@ -47,9 +47,9 @@ quantidades, dimensões, IDs e referências. Dados excedentes e estruturas incom
 Mapa, itens, equipamentos, missões, heróis e estados são identificados por IDs persistentes. A
 Mythara 4 não converte saves v3.
 
-## Tema `.myt` e configuração `.myc`
+## Tema `.myt` e configuração `.myc` v5
 
-Assinaturas: `MYTTEM4\0` e `MYTCFG4\0`. Ambos usam o envelope:
+Assinaturas: `MYTTEM5\0` e `MYTCFG5\0`. Ambos usam o envelope:
 
 | Campo | Tipo |
 |---|---|
@@ -59,9 +59,14 @@ Assinaturas: `MYTTEM4\0` e `MYTCFG4\0`. Ambos usam o envelope:
 | CRC32 | `u32` |
 | payload | bytes |
 
-O tema guarda as cores e métricas limitadas da interface. A configuração guarda o tema, layout,
-workspace, preferências, idioma do editor e projeto recente. Uma configuração antiga ou inválida é
-ignorada com retorno seguro aos padrões.
+O tema guarda as cores semânticas, métricas, preset e preferência de movimento da interface. A
+configuração guarda o tema, dimensões de painéis, workspace, estado da barra lateral, preferências,
+idioma do editor e projeto recente. Uma configuração antiga ou inválida é ignorada com retorno
+seguro aos padrões.
+
+Temas v4 são rejeitados com uma mensagem explícita e devem ser recriados a partir dos presets v5.
+Configurações v4 não são migradas; o editor inicia com o preset Arcano Noturno e grava uma nova
+configuração v5 ao encerrar.
 
 Local padrão da configuração:
 
@@ -80,6 +85,7 @@ snapshots rotativos de `autosave_0.myr` a `autosave_9.myr`.
 - A migração sempre cria outro arquivo v4 e preserva a origem.
 - O runtime e a recuperação de autosave exigem projetos v4.
 - O leitor v4 não tenta adivinhar versões ou layouts.
+- Projetos e saves permanecem em v4; a versão v5 é exclusiva a temas e configuração do editor.
 - Campos incompatíveis exigem nova versão do chunk ou do documento.
 
 Consulte [MIGRACAO_V4.md](MIGRACAO_V4.md) para o fluxo voltado a usuários.

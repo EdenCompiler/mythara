@@ -42,7 +42,10 @@ typedef enum {
     LAYOUT_EVENTOS,
     LAYOUT_BANCO,
     LAYOUT_RECURSOS,
-    LAYOUT_PLAYTEST
+    LAYOUT_TEMA,
+    LAYOUT_PROJETO,
+    LAYOUT_AJUDA,
+    QUANTIDADE_LAYOUTS
 } LayoutEditor;
 
 typedef struct {
@@ -69,6 +72,9 @@ typedef struct {
     /* Layout responsivo. */
     int largura_arvore, largura_inspetor, altura_inferior, divisor_ativo;
     int layout_ativo, gaveta_arvore, gaveta_inspetor;
+    int barra_lateral_recolhida, tema_avancado, painel_inferior_aberto;
+    int largura_barra_animada;
+    int rolagem_workspace_x[QUANTIDADE_LAYOUTS], rolagem_workspace_y[QUANTIDADE_LAYOUTS];
 
     /* Selecao e ferramentas de area. */
     int selecao_x0, selecao_y0, selecao_x1, selecao_y1, selecao_ativa;
@@ -204,11 +210,18 @@ static void serializar_tema(EscritorBinario *w, const TemaInterface *tema) {
                          tema->sucesso};
     for (size_t i = 0; i < sizeof(cores) / sizeof(cores[0]); ++i)
         escritor_binario_u32(w, cores[i]);
+    const Cor cores_semanticas[] = {tema->barra,       tema->lateral,      tema->lateral_sobre,
+                                    tema->canvas,      tema->sobreposicao, tema->foco,
+                                    tema->desabilitado};
+    for (size_t i = 0; i < sizeof(cores_semanticas) / sizeof(cores_semanticas[0]); ++i)
+        escritor_binario_u32(w, cores_semanticas[i]);
     escritor_binario_i32(w, tema->escala_percentual);
     escritor_binario_i32(w, tema->espacamento);
     escritor_binario_i32(w, tema->altura_controle);
     escritor_binario_i32(w, tema->espessura_borda);
     escritor_binario_i32(w, tema->raio_visual);
+    escritor_binario_i32(w, tema->preset);
+    escritor_binario_i32(w, tema->movimento_reduzido);
 }
 
 static int deserializar_tema(LeitorBinario *r, TemaInterface *tema) {
@@ -220,24 +233,33 @@ static int deserializar_tema(LeitorBinario *r, TemaInterface *tema) {
                     &tema->sucesso};
     for (size_t i = 0; i < sizeof(cores) / sizeof(cores[0]); ++i)
         *cores[i] = leitor_binario_u32(r);
+    Cor *cores_semanticas[] = {&tema->barra,       &tema->lateral,      &tema->lateral_sobre,
+                               &tema->canvas,      &tema->sobreposicao, &tema->foco,
+                               &tema->desabilitado};
+    for (size_t i = 0; i < sizeof(cores_semanticas) / sizeof(cores_semanticas[0]); ++i)
+        *cores_semanticas[i] = leitor_binario_u32(r);
     tema->escala_percentual = leitor_binario_i32(r);
     tema->espacamento = leitor_binario_i32(r);
     tema->altura_controle = leitor_binario_i32(r);
     tema->espessura_borda = leitor_binario_i32(r);
     tema->raio_visual = leitor_binario_i32(r);
+    tema->preset = leitor_binario_i32(r);
+    tema->movimento_reduzido = leitor_binario_i32(r);
     if (r->erro || tema->escala_percentual < 100 || tema->escala_percentual > 200 ||
         tema->espacamento < 2 || tema->espacamento > 16 || tema->altura_controle < 22 ||
         tema->altura_controle > 44 || tema->espessura_borda < 0 || tema->espessura_borda > 8 ||
-        tema->raio_visual < 0 || tema->raio_visual > 16)
+        tema->raio_visual < 0 || tema->raio_visual > 16 || tema->preset < TEMA_ARCANO ||
+        tema->preset > TEMA_PERSONALIZADO ||
+        (tema->movimento_reduzido != 0 && tema->movimento_reduzido != 1))
         return 0;
     return 1;
 }
 
-static int salvar_documento_v4(const char magia[8], const EscritorBinario *payload,
-                               const char *caminho) {
+static int salvar_documento_portatil(const char magia[8], uint32_t versao,
+                                     const EscritorBinario *payload, const char *caminho) {
     EscritorBinario arquivo = {0};
     escritor_binario_bytes(&arquivo, magia, 8);
-    escritor_binario_u32(&arquivo, 4);
+    escritor_binario_u32(&arquivo, versao);
     escritor_binario_u64(&arquivo, (uint64_t)payload->tamanho);
     escritor_binario_u32(&arquivo, crc32_binario(payload->dados, payload->tamanho));
     escritor_binario_bytes(&arquivo, payload->dados, payload->tamanho);
@@ -262,8 +284,8 @@ falha:
     return 0;
 }
 
-static int carregar_documento_v4(const char magia[8], const char *caminho, uint8_t **dados,
-                                 size_t *tamanho) {
+static int carregar_documento_portatil(const char magia[8], uint32_t versao_esperada,
+                                       const char *caminho, uint8_t **dados, size_t *tamanho) {
     uint8_t *arquivo = NULL;
     size_t tamanho_arquivo = 0;
     if (!carregar_arquivo_limitado(caminho, &arquivo, &tamanho_arquivo))
@@ -274,7 +296,7 @@ static int carregar_documento_v4(const char magia[8], const char *caminho, uint8
     uint32_t versao = leitor_binario_u32(&r);
     uint64_t tamanho_payload = leitor_binario_u64(&r);
     uint32_t soma = leitor_binario_u32(&r);
-    if (r.erro || memcmp(assinatura, magia, 8) || versao != 4 ||
+    if (r.erro || memcmp(assinatura, magia, 8) || versao != versao_esperada ||
         tamanho_payload != r.tamanho - r.posicao ||
         crc32_binario(r.dados + r.posicao, (size_t)tamanho_payload) != soma) {
         free(arquivo);
@@ -297,13 +319,13 @@ static void carregar_configuracao(Aplicativo *a) {
         return;
     uint8_t *dados = NULL;
     size_t tamanho = 0;
-    const char magia[8] = {'M', 'Y', 'T', 'C', 'F', 'G', '4', '\0'};
-    if (!carregar_documento_v4(magia, caminho, &dados, &tamanho))
+    const char magia[8] = {'M', 'Y', 'T', 'C', 'F', 'G', '5', '\0'};
+    if (!carregar_documento_portatil(magia, 5, caminho, &dados, &tamanho))
         return;
     LeitorBinario r = {dados, tamanho, 0, 0};
     TemaInterface tema;
     int largura_arvore, largura_inspetor, altura_inferior, layout_ativo, mostrar_boas_vindas,
-        dicas_ativas, idioma_editor;
+        dicas_ativas, idioma_editor, barra_lateral_recolhida, painel_inferior_aberto;
     char caminho_recente[MYTHARA_MAX_CAMINHO];
     int ok = deserializar_tema(&r, &tema);
     largura_arvore = leitor_binario_i32(&r);
@@ -313,6 +335,8 @@ static void carregar_configuracao(Aplicativo *a) {
     mostrar_boas_vindas = leitor_binario_i32(&r);
     dicas_ativas = leitor_binario_i32(&r);
     idioma_editor = leitor_binario_i32(&r);
+    barra_lateral_recolhida = leitor_binario_i32(&r);
+    painel_inferior_aberto = leitor_binario_i32(&r);
     leitor_binario_texto(&r, caminho_recente, sizeof(caminho_recente));
     ok = ok && leitor_binario_fim(&r);
     free(dados);
@@ -323,7 +347,9 @@ static void carregar_configuracao(Aplicativo *a) {
         a->editor.largura_arvore = limitar_int(largura_arvore, 190, 360);
         a->editor.largura_inspetor = limitar_int(largura_inspetor, 250, 420);
         a->editor.altura_inferior = limitar_int(altura_inferior, 95, 240);
-        a->editor.layout_ativo = limitar_int(layout_ativo, 0, 4);
+        a->editor.layout_ativo = limitar_int(layout_ativo, 0, QUANTIDADE_LAYOUTS - 1);
+        a->editor.barra_lateral_recolhida = barra_lateral_recolhida != 0;
+        a->editor.painel_inferior_aberto = painel_inferior_aberto != 0;
         a->mostrar_boas_vindas = mostrar_boas_vindas != 0;
         a->dicas_ativas = dicas_ativas != 0;
         a->idioma_editor = limitar_int(idioma_editor, IDIOMA_PORTUGUES, IDIOMA_INGLES);
@@ -346,27 +372,39 @@ static void salvar_configuracao(const Aplicativo *a) {
     escritor_binario_i32(&payload, a->mostrar_boas_vindas);
     escritor_binario_i32(&payload, a->dicas_ativas);
     escritor_binario_i32(&payload, a->idioma_editor);
+    escritor_binario_i32(&payload, a->editor.barra_lateral_recolhida);
+    escritor_binario_i32(&payload, a->editor.painel_inferior_aberto);
     escritor_binario_texto(&payload, a->caminho_recente);
-    const char magia[8] = {'M', 'Y', 'T', 'C', 'F', 'G', '4', '\0'};
+    const char magia[8] = {'M', 'Y', 'T', 'C', 'F', 'G', '5', '\0'};
     if (!payload.erro)
-        salvar_documento_v4(magia, &payload, caminho);
+        salvar_documento_portatil(magia, 5, &payload, caminho);
     escritor_binario_liberar(&payload);
 }
 
 static int salvar_tema_arquivo(const char *caminho) {
     EscritorBinario payload = {0};
     serializar_tema(&payload, &tema_ativo);
-    const char magia[8] = {'M', 'Y', 'T', 'T', 'E', 'M', '4', '\0'};
-    int ok = !payload.erro && salvar_documento_v4(magia, &payload, caminho);
+    const char magia[8] = {'M', 'Y', 'T', 'T', 'E', 'M', '5', '\0'};
+    int ok = !payload.erro && salvar_documento_portatil(magia, 5, &payload, caminho);
     escritor_binario_liberar(&payload);
     return ok;
 }
+static int tema_arquivo_legado;
 static int carregar_tema_arquivo(const char *caminho) {
     uint8_t *dados = NULL;
     size_t tamanho = 0;
-    const char magia[8] = {'M', 'Y', 'T', 'T', 'E', 'M', '4', '\0'};
-    if (!carregar_documento_v4(magia, caminho, &dados, &tamanho))
+    tema_arquivo_legado = 0;
+    const char magia[8] = {'M', 'Y', 'T', 'T', 'E', 'M', '5', '\0'};
+    if (!carregar_documento_portatil(magia, 5, caminho, &dados, &tamanho)) {
+        FILE *f = fopen(caminho, "rb");
+        char assinatura[8] = {0};
+        if (f && fread(assinatura, sizeof(assinatura), 1, f) == 1 &&
+            !memcmp(assinatura, "MYTTEM4", 7))
+            tema_arquivo_legado = 1;
+        if (f)
+            fclose(f);
         return 0;
+    }
     LeitorBinario r = {dados, tamanho, 0, 0};
     TemaInterface t;
     int ok = deserializar_tema(&r, &t) && leitor_binario_fim(&r);
@@ -743,19 +781,30 @@ static void recarregar_recursos(Aplicativo *a) {
         }
 }
 
+static void reiniciar_editor_preservando_interface(Editor *e) {
+    int tinha_interface = e->largura_arvore > 0;
+    int largura_arvore = e->largura_arvore, largura_inspetor = e->largura_inspetor,
+        altura_inferior = e->altura_inferior, barra_recolhida = e->barra_lateral_recolhida,
+        painel_aberto = e->painel_inferior_aberto, tema_avancado = e->tema_avancado;
+    memset(e, 0, sizeof(*e));
+    e->zoom = 32;
+    e->tile = 1;
+    e->entidade_selecionada = -1;
+    e->evento_selecionado = 0;
+    e->largura_arvore = tinha_interface ? largura_arvore : 235;
+    e->largura_inspetor = tinha_interface ? largura_inspetor : 280;
+    e->altura_inferior = tinha_interface ? altura_inferior : 150;
+    e->barra_lateral_recolhida = barra_recolhida;
+    e->painel_inferior_aberto = tinha_interface ? painel_aberto : 1;
+    e->tema_avancado = tema_avancado;
+}
+
 static void novo_projeto(Aplicativo *a) {
     liberar_historico_global(&a->editor);
     liberar_recursos(a);
     liberar_projeto(&a->projeto);
     iniciar_projeto(&a->projeto);
-    memset(&a->editor, 0, sizeof(a->editor));
-    a->editor.zoom = 32;
-    a->editor.tile = 1;
-    a->editor.entidade_selecionada = -1;
-    a->editor.evento_selecionado = 0;
-    a->editor.largura_arvore = 235;
-    a->editor.largura_inspetor = 280;
-    a->editor.altura_inferior = 150;
+    reiniciar_editor_preservando_interface(&a->editor);
     copiar_texto(a->caminho_projeto, sizeof(a->caminho_projeto), "projeto_mythara/projeto.myr");
     preparar_pasta_projeto(&a->projeto, a->caminho_projeto);
     definir_caminho_autosave(a);
@@ -855,13 +904,7 @@ static int abrir_projeto_atual(Aplicativo *a, const char *caminho) {
     liberar_recursos(a);
     liberar_projeto(&a->projeto);
     a->projeto = p;
-    memset(&a->editor, 0, sizeof(a->editor));
-    a->editor.zoom = 32;
-    a->editor.tile = 1;
-    a->editor.entidade_selecionada = -1;
-    a->editor.largura_arvore = 235;
-    a->editor.largura_inspetor = 280;
-    a->editor.altura_inferior = 150;
+    reiniciar_editor_preservando_interface(&a->editor);
     copiar_texto(a->caminho_projeto, sizeof(a->caminho_projeto), caminho);
     preparar_pasta_projeto(&a->projeto, caminho);
     recarregar_recursos(a);

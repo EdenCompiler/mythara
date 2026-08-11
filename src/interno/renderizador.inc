@@ -59,6 +59,21 @@ static void copiar_tela_escalada(const Tela *origem, Tela *destino) {
     }
 }
 
+static void copiar_recorte_tela(const Tela *origem, Tela *destino, Retangulo fonte, int destino_x,
+                                int destino_y) {
+    for (int y = 0; y < fonte.altura; ++y) {
+        int sy = fonte.y + y, dy = destino_y + y;
+        if (sy < 0 || sy >= origem->altura || dy < 0 || dy >= destino->altura)
+            continue;
+        for (int x = 0; x < fonte.largura; ++x) {
+            int sx = fonte.x + x, dx = destino_x + x;
+            if (sx >= 0 && sx < origem->largura && dx >= 0 && dx < destino->largura)
+                destino->pixels[(size_t)dy * (size_t)destino->largura + (size_t)dx] =
+                    origem->pixels[(size_t)sy * (size_t)origem->largura + (size_t)sx];
+        }
+    }
+}
+
 /* Fonte bitmap -------------------------------------------------------------- */
 /* Cada linha usa cinco bits. Letras minusculas compartilham os glifos maiores. */
 static const uint8_t fonte_digitos[10][7] = {
@@ -241,7 +256,24 @@ static char simplificar_codigo(unsigned c) {
     return c < 128 ? (char)c : '?';
 }
 
-static void desenhar_texto(Tela *t, int x, int y, const char *texto, Cor cor, int escala) {
+static int acento_codigo(unsigned c) {
+    if (c == 0x00c1 || c == 0x00c9 || c == 0x00cd || c == 0x00d3 || c == 0x00da || c == 0x00e1 ||
+        c == 0x00e9 || c == 0x00ed || c == 0x00f3 || c == 0x00fa)
+        return 1;
+    if (c == 0x00c0 || c == 0x00c8 || c == 0x00cc || c == 0x00d2 || c == 0x00d9 || c == 0x00e0 ||
+        c == 0x00e8 || c == 0x00ec || c == 0x00f2 || c == 0x00f9)
+        return 2;
+    if (c == 0x00c2 || c == 0x00ca || c == 0x00d4 || c == 0x00e2 || c == 0x00ea || c == 0x00f4)
+        return 3;
+    if (c == 0x00c3 || c == 0x00d5 || c == 0x00e3 || c == 0x00f5 || c == 0x00d1 || c == 0x00f1)
+        return 4;
+    if (c == 0x00c7 || c == 0x00e7)
+        return 5;
+    return 0;
+}
+
+static void desenhar_texto_estilo(Tela *t, int x, int y, const char *texto, Cor cor, int escala,
+                                  int forte) {
     texto = idioma_traduzir(texto);
     int origem_x = x;
     while (*texto) {
@@ -254,13 +286,47 @@ static void desenhar_texto(Tela *t, int x, int y, const char *texto, Cor cor, in
             continue;
         }
         glifo_para(c, linhas);
+        int acento = acento_codigo(codigo), deslocamento = acento && acento != 5 ? escala : 0;
+        if (acento == 1)
+            preencher_retangulo(t, (Retangulo){x + 3 * escala, y, escala, escala}, cor);
+        else if (acento == 2)
+            preencher_retangulo(t, (Retangulo){x + escala, y, escala, escala}, cor);
+        else if (acento == 3) {
+            preencher_retangulo(t, (Retangulo){x + escala, y, escala, escala}, cor);
+            preencher_retangulo(t, (Retangulo){x + 3 * escala, y, escala, escala}, cor);
+        } else if (acento == 4) {
+            preencher_retangulo(t, (Retangulo){x + escala, y, escala, escala}, cor);
+            preencher_retangulo(t, (Retangulo){x + 2 * escala, y, escala, escala}, cor);
+        }
         for (int l = 0; l < 7; ++l)
             for (int coluna = 0; coluna < 5; ++coluna)
-                if (linhas[l] & (1u << (4 - coluna)))
-                    preencher_retangulo(
-                        t, (Retangulo){x + coluna * escala, y + l * escala, escala, escala}, cor);
+                if (linhas[l] & (1u << (4 - coluna))) {
+                    preencher_retangulo(t,
+                                        (Retangulo){x + coluna * escala,
+                                                    y + deslocamento + l * escala, escala, escala},
+                                        cor);
+                    if (forte && coluna < 4)
+                        preencher_retangulo(t,
+                                            (Retangulo){x + coluna * escala + escala,
+                                                        y + deslocamento + l * escala, escala,
+                                                        escala},
+                                            cor);
+                }
+        if (acento == 5) {
+            preencher_retangulo(t, (Retangulo){x + 2 * escala, y + 7 * escala, escala, escala},
+                                cor);
+            preencher_retangulo(t, (Retangulo){x + escala, y + 8 * escala, escala, escala}, cor);
+        }
         x += 6 * escala;
     }
+}
+
+static void desenhar_texto(Tela *t, int x, int y, const char *texto, Cor cor, int escala) {
+    desenhar_texto_estilo(t, x, y, texto, cor, escala, 0);
+}
+
+static void desenhar_texto_forte(Tela *t, int x, int y, const char *texto, Cor cor, int escala) {
+    desenhar_texto_estilo(t, x, y, texto, cor, escala, 1);
 }
 
 /* Visualizacao de tiles ----------------------------------------------------- */

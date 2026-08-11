@@ -7,9 +7,23 @@
 
 /* Estrutura comum e selecao de caminhos ------------------------------------ */
 
+static int desenhando_workspace;
+static Retangulo area_workspace;
+
 static Retangulo iniciar_modal(Interface *ui, const char *titulo, int largura, int altura) {
+    if (desenhando_workspace) {
+        preencher_retangulo(ui->tela, area_workspace, tema_ativo.canvas);
+        if (largura > area_workspace.largura - 16)
+            largura = area_workspace.largura - 16;
+        if (altura > area_workspace.altura - 16)
+            altura = area_workspace.altura - 16;
+        Retangulo r = {area_workspace.x + (area_workspace.largura - largura) / 2,
+                       area_workspace.y + (area_workspace.altura - altura) / 2, largura, altura};
+        ui_painel(ui->tela, r, titulo);
+        return r;
+    }
     preencher_retangulo(ui->tela, (Retangulo){0, 0, ui->tela->largura, ui->tela->altura},
-                        cor_rgb(14, 17, 23));
+                        tema_ativo.sobreposicao);
     largura = limitar_int(largura, 240, ui->tela->largura - 20);
     altura = limitar_int(altura, 160, ui->tela->altura - 20);
     Retangulo r = {(ui->tela->largura - largura) / 2, (ui->tela->altura - altura) / 2, largura,
@@ -523,7 +537,8 @@ static void modal_banco(Aplicativo *a, Interface *ui) {
         m->recompensa_experiencia = ui_numero(ui, (Retangulo){x2, y2, 280, 27}, "RECOMPENSA XP",
                                               m->recompensa_experiencia, 0, 999999);
     }
-    if (ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 48, 90, 28}, "CONCLUIR",
+    if (!desenhando_workspace &&
+        ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 48, 90, 28}, "CONCLUIR",
                  0)) {
         e->alterado = 1;
         a->modal = MODAL_NENHUM;
@@ -537,6 +552,7 @@ static void modal_eventos(Aplicativo *a, Interface *ui) {
     Editor *ed = &a->editor;
     int y = r.y + 42;
     if (r.largura < 900) {
+        int altura_compacta = r.altura < 400;
         if (a->projeto.quantidade_eventos <= 0)
             adicionar_evento(a, "Novo evento");
         int ev = limitar_int(ed->evento_selecionado, 0, a->projeto.quantidade_eventos - 1);
@@ -558,7 +574,10 @@ static void modal_eventos(Aplicativo *a, Interface *ui) {
                 ed->comando_selecionado = 0;
             }
         }
-        if (ui_botao(ui, (Retangulo){r.x + 134, r.y + r.altura - 44, 116, 24}, "- EVENTO", 0) &&
+        if (ui_botao(ui,
+                     (Retangulo){r.x + (altura_compacta ? 94 : 134), r.y + r.altura - 44,
+                                 altura_compacta ? 72 : 116, 24},
+                     "- EVENTO", 0) &&
             excluir_evento_editor(a, ev))
             return;
         Evento *evento = &a->projeto.eventos[ev];
@@ -592,7 +611,8 @@ static void modal_eventos(Aplicativo *a, Interface *ui) {
                          ed->comando_selecionado == i))
                 ed->comando_selecionado = i;
         }
-        if (ui_botao(ui, (Retangulo){r.x + 16, r.y + r.altura - 44, 112, 24}, "+ COMANDO", 0) &&
+        if (ui_botao(ui, (Retangulo){r.x + 16, r.y + r.altura - 44, altura_compacta ? 72 : 112, 24},
+                     "+ COMANDO", 0) &&
             evento->quantidade_comandos < MYTHARA_MAX_COMANDOS &&
             reservar_comandos(evento, evento->quantidade_comandos + 1)) {
             int i = evento->quantidade_comandos++;
@@ -624,19 +644,32 @@ static void modal_eventos(Aplicativo *a, Interface *ui) {
             c->b = ui_numero(ui, (Retangulo){painel_x, cy, painel_largura, 24}, "PARAMETRO B", c->b,
                              -999, 999);
             cy += 28;
-            c->c = ui_numero(ui, (Retangulo){painel_x, cy, painel_largura, 24}, "PARAMETRO C", c->c,
-                             -999, 999);
-            cy += 28;
-            c->profundidade = ui_numero(ui, (Retangulo){painel_x, cy, painel_largura, 24}, "NIVEL",
-                                        c->profundidade, 0, 8);
-            if (ui_botao(ui, (Retangulo){painel_x, r.y + r.altura - 44, 130, 24}, "EXCLUIR", 0)) {
+            if (altura_compacta) {
+                c->c = ui_numero(ui, (Retangulo){painel_x, cy, painel_largura / 2 - 3, 24}, "P. C",
+                                 c->c, -999, 999);
+                c->profundidade = ui_numero(
+                    ui,
+                    (Retangulo){painel_x + painel_largura / 2 + 3, cy, painel_largura / 2 - 3, 24},
+                    "NIVEL", c->profundidade, 0, 8);
+            } else {
+                c->c = ui_numero(ui, (Retangulo){painel_x, cy, painel_largura, 24}, "PARAMETRO C",
+                                 c->c, -999, 999);
+                cy += 28;
+                c->profundidade = ui_numero(ui, (Retangulo){painel_x, cy, painel_largura, 24},
+                                            "NIVEL", c->profundidade, 0, 8);
+            }
+            if (ui_botao(ui,
+                         (Retangulo){altura_compacta ? r.x + 172 : painel_x, r.y + r.altura - 44,
+                                     altura_compacta ? 72 : 130, 24},
+                         altura_compacta ? "- COMANDO" : "EXCLUIR", 0)) {
                 memmove(c, c + 1, (size_t)(evento->quantidade_comandos - ci - 1) * sizeof(*c));
                 evento->quantidade_comandos--;
                 ed->comando_selecionado = limitar_int(
                     ci - 1, 0, evento->quantidade_comandos ? evento->quantidade_comandos - 1 : 0);
             }
         }
-        if (ui_botao(ui, (Retangulo){r.x + r.largura - 108, r.y + r.altura - 44, 88, 24},
+        if (!desenhando_workspace &&
+            ui_botao(ui, (Retangulo){r.x + r.largura - 108, r.y + r.altura - 44, 88, 24},
                      "CONCLUIR", 0)) {
             ed->alterado = 1;
             a->modal = MODAL_NENHUM;
@@ -681,7 +714,8 @@ static void modal_eventos(Aplicativo *a, Interface *ui) {
     if (a->projeto.quantidade_eventos <= 0) {
         desenhar_texto(ui->tela, r.x + 236, r.y + 48, "NENHUM EVENTO. USE + EVENTO PARA CRIAR.",
                        tema_ativo.texto_suave, 1);
-        if (ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27},
+        if (!desenhando_workspace &&
+            ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27},
                      "CONCLUIR", 0))
             a->modal = MODAL_NENHUM;
         return;
@@ -789,7 +823,8 @@ static void modal_eventos(Aplicativo *a, Interface *ui) {
             }
         }
     }
-    if (ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27}, "CONCLUIR",
+    if (!desenhando_workspace &&
+        ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27}, "CONCLUIR",
                  0)) {
         ed->alterado = 1;
         a->modal = MODAL_NENHUM;
@@ -983,9 +1018,11 @@ static void modal_recursos(Aplicativo *a, Interface *ui) {
             tocar_wav(caminho);
         }
     }
-    if (ui_botao(ui, (Retangulo){r.x + 18, r.y + r.altura - 44, 120, 27}, "EXCLUIR", 0))
+    if (e->recurso_selecionado >= 0 && e->recurso_selecionado < a->projeto.quantidade_recursos &&
+        ui_botao(ui, (Retangulo){r.x + 18, r.y + r.altura - 44, 120, 27}, "EXCLUIR", 0))
         excluir_recurso_editor(a, e->recurso_selecionado);
-    if (ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27}, "CONCLUIR",
+    if (!desenhando_workspace &&
+        ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27}, "CONCLUIR",
                  0))
         a->modal = MODAL_NENHUM;
 }
@@ -993,6 +1030,20 @@ static void modal_recursos(Aplicativo *a, Interface *ui) {
 static void modal_ajuda(Aplicativo *a, Interface *ui) {
     Retangulo r = iniciar_modal(ui, "MYTHARA - AJUDA", 720, 470);
     int x = r.x + 25, y = r.y + 50;
+    if (r.altura < 400) {
+        const char *resumo[] = {"FLUXO RAPIDO: MAPA > EVENTOS > BANCO > PLAYTEST",
+                                "F5: PLAYTEST   CTRL+S: SALVAR   CTRL+P: COMANDOS",
+                                "TAB/SHIFT+TAB: NAVEGAR   ENTER/ESPACO: ATIVAR",
+                                "SETAS: BARRA LATERAL   ESC: FECHAR FLUXO",
+                                "IMAGENS: BMP, QOI, TGA   AUDIO: WAV PCM",
+                                "PROJETOS: .MYR V4   TEMAS: .MYT V5"};
+        for (size_t i = 0; i < sizeof(resumo) / sizeof(resumo[0]); ++i) {
+            desenhar_texto(ui->tela, x, y, resumo[i],
+                           i == 0 ? tema_ativo.destaque : tema_ativo.texto, 1);
+            y += 27;
+        }
+        return;
+    }
     const char *linhas[] = {"FLUXO RAPIDO",
                             "1. ESCOLHA UM TILE E PINTE O MAPA.",
                             "2. MARQUE PAREDES COM A FERRAMENTA COLISAO.",
@@ -1013,7 +1064,8 @@ static void modal_ajuda(Aplicativo *a, Interface *ui) {
                        i == 0 || i == 7 ? cor_rgb(135, 198, 235) : cor_rgb(211, 220, 231), 1);
         y += 24;
     }
-    if (ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27}, "FECHAR", 0))
+    if (!desenhando_workspace &&
+        ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 44, 90, 27}, "FECHAR", 0))
         a->modal = MODAL_NENHUM;
 }
 
@@ -1021,9 +1073,9 @@ static void editor_painel_inferior(Aplicativo *a, Interface *ui, Retangulo r) {
     Editor *e = &a->editor;
     Mapa *m = &a->projeto.mapas[e->mapa_atual];
     ui_painel(ui->tela, r, "TILES, AUTOTILE, CARIMBOS E MINIMAPA");
-    int y = r.y + 35;
+    int y = r.y + 35, compacto = r.largura < 760, colunas = compacto ? 8 : 16;
     for (int i = 0; i < 32; ++i) {
-        Retangulo q = {r.x + 10 + (i % 16) * 30, y + (i / 16) * 30, 26, 26};
+        Retangulo q = {r.x + 10 + (i % colunas) * 30, y + (i / colunas) * 30, 26, 26};
         desenhar_tile_recurso(a, ui->tela, q, i, 0);
         if (e->tile == i)
             contornar_retangulo(ui->tela, (Retangulo){q.x - 2, q.y - 2, 30, 30}, tema_ativo.aviso);
@@ -1031,14 +1083,23 @@ static void editor_painel_inferior(Aplicativo *a, Interface *ui, Retangulo r) {
             ui->entrada->mouse_pressionado)
             e->tile = i;
     }
-    e->autotile =
-        ui_checkbox(ui, (Retangulo){r.x + 10, y + 68, 130, 20}, "AUTOTILE 4 LADOS", e->autotile);
-    if (ui_botao(ui, (Retangulo){r.x + 160, y + 64, 146, 25}, "CRIAR CARIMBO", 0))
+    int controles_x = compacto ? r.x + 258 : r.x + 10;
+    e->autotile = ui_checkbox(
+        ui, (Retangulo){controles_x, compacto ? y + 4 : y + 68, compacto ? 138 : 130, 20},
+        "AUTOTILE 4 LADOS", e->autotile);
+    if (ui_botao(ui,
+                 (Retangulo){compacto ? controles_x : r.x + 160, compacto ? y + 36 : y + 64,
+                             compacto ? 138 : 146, 25},
+                 "CRIAR CARIMBO", 0))
         copiar_selecao_para_carimbo(a);
     char info[128];
-    snprintf(info, sizeof(info), "TILE %d  |  %s  |  %dx%d", e->tile, m->camadas[e->camada].nome,
-             m->largura, m->altura);
-    desenhar_texto(ui->tela, r.x + 325, y + 72, info, tema_ativo.texto_suave, 1);
+    if (compacto)
+        snprintf(info, sizeof(info), "TILE %d | %.12s", e->tile, m->camadas[e->camada].nome);
+    else
+        snprintf(info, sizeof(info), "TILE %d  |  %s  |  %dx%d", e->tile,
+                 m->camadas[e->camada].nome, m->largura, m->altura);
+    desenhar_texto(ui->tela, compacto ? controles_x : r.x + 325, compacto ? y + 76 : y + 72, info,
+                   tema_ativo.texto_suave, 1);
     int mw = 170, mh = r.altura - 38, mx = r.x + r.largura - mw - 12, my = r.y + 31;
     preencher_retangulo(ui->tela, (Retangulo){mx, my, mw, mh}, tema_ativo.fundo);
     int sx = mw / m->largura, sy = mh / m->altura, escala = sx < sy ? sx : sy;
@@ -1055,22 +1116,102 @@ static void editor_painel_inferior(Aplicativo *a, Interface *ui, Retangulo r) {
 }
 
 static Cor *cor_tema_por_indice(int indice) {
-    Cor *cores[] = {&tema_ativo.fundo,    &tema_ativo.painel,         &tema_ativo.painel_elevado,
-                    &tema_ativo.controle, &tema_ativo.controle_sobre, &tema_ativo.selecao,
-                    &tema_ativo.borda,    &tema_ativo.texto,          &tema_ativo.texto_suave,
-                    &tema_ativo.destaque, &tema_ativo.perigo,         &tema_ativo.aviso,
-                    &tema_ativo.sucesso};
-    return cores[limitar_int(indice, 0, 12)];
+    Cor *cores[] = {
+        &tema_ativo.fundo,         &tema_ativo.painel,         &tema_ativo.painel_elevado,
+        &tema_ativo.controle,      &tema_ativo.controle_sobre, &tema_ativo.selecao,
+        &tema_ativo.borda,         &tema_ativo.texto,          &tema_ativo.texto_suave,
+        &tema_ativo.destaque,      &tema_ativo.perigo,         &tema_ativo.aviso,
+        &tema_ativo.sucesso,       &tema_ativo.barra,          &tema_ativo.lateral,
+        &tema_ativo.lateral_sobre, &tema_ativo.canvas,         &tema_ativo.sobreposicao,
+        &tema_ativo.foco,          &tema_ativo.desabilitado};
+    return cores[limitar_int(indice, 0, 19)];
 }
 
 /* Tema e preferencias visuais ---------------------------------------------- */
 
+static void tema_compacto(Aplicativo *a, Interface *ui, Retangulo r) {
+    int x = r.x + 18, y = r.y + 40, metade = (r.largura - 54) / 2;
+    if (ui_botao(ui, (Retangulo){x, y, metade, 27}, "ARCANO", tema_ativo.preset == TEMA_ARCANO)) {
+        int escala = tema_ativo.escala_percentual, movimento = tema_ativo.movimento_reduzido;
+        iniciar_tema_arcano();
+        tema_ativo.escala_percentual = escala;
+        tema_ativo.movimento_reduzido = movimento;
+    }
+    if (ui_botao(ui, (Retangulo){x + metade + 8, y, metade, 27}, "PERGAMINHO",
+                 tema_ativo.preset == TEMA_PERGAMINHO)) {
+        int escala = tema_ativo.escala_percentual, movimento = tema_ativo.movimento_reduzido;
+        iniciar_tema_pergaminho();
+        tema_ativo.escala_percentual = escala;
+        tema_ativo.movimento_reduzido = movimento;
+    }
+    y += 38;
+    if (!a->editor.tema_avancado) {
+        const char *nomes[] = {"FUNDO", "PAINEL", "CONTROLE", "SELECAO",
+                               "BORDA", "TEXTO",  "DESTAQUE"};
+        const int indices[] = {0, 1, 3, 5, 6, 7, 9};
+        int selecao_valida = 0;
+        for (int i = 0; i < 7; ++i)
+            if (a->editor.cor_tema_selecionada == indices[i])
+                selecao_valida = 1;
+        if (!selecao_valida)
+            a->editor.cor_tema_selecionada = 0;
+        for (int i = 0; i < 7; ++i) {
+            Cor *amostra = cor_tema_por_indice(indices[i]);
+            int linha = i % 4, coluna = i / 4, bx = x + coluna * 126;
+            preencher_retangulo(ui->tela, (Retangulo){bx, y + linha * 31, 20, 23}, *amostra);
+            if (ui_botao(ui, (Retangulo){bx + 25, y + linha * 31, 94, 23}, nomes[i],
+                         a->editor.cor_tema_selecionada == indices[i]))
+                a->editor.cor_tema_selecionada = indices[i];
+        }
+        Cor *cor = cor_tema_por_indice(a->editor.cor_tema_selecionada);
+        int rr = (*cor >> 16) & 255, gg = (*cor >> 8) & 255, bb = *cor & 255;
+        int rr0 = rr, gg0 = gg, bb0 = bb, controles_x = r.x + r.largura / 2 + 6,
+            controles_w = r.x + r.largura - controles_x - 18;
+        rr = ui_numero(ui, (Retangulo){controles_x, y, controles_w, 27}, "VERMELHO", rr, 0, 255);
+        gg = ui_numero(ui, (Retangulo){controles_x, y + 34, controles_w, 27}, "VERDE", gg, 0, 255);
+        bb = ui_numero(ui, (Retangulo){controles_x, y + 68, controles_w, 27}, "AZUL", bb, 0, 255);
+        *cor = cor_rgb((unsigned)rr, (unsigned)gg, (unsigned)bb);
+        if (rr != rr0 || gg != gg0 || bb != bb0)
+            tema_ativo.preset = TEMA_PERSONALIZADO;
+    } else {
+        int largura = r.largura - 36;
+        int escala_anterior = tema_ativo.escala_percentual,
+            espacamento_anterior = tema_ativo.espacamento,
+            altura_anterior = tema_ativo.altura_controle;
+        tema_ativo.escala_percentual = ui_numero(ui, (Retangulo){x, y, largura, 27}, "ESCALA %",
+                                                 tema_ativo.escala_percentual, 100, 200);
+        tema_ativo.espacamento = ui_numero(ui, (Retangulo){x, y + 34, largura, 27}, "ESPACAMENTO",
+                                           tema_ativo.espacamento, 2, 16);
+        tema_ativo.altura_controle = ui_numero(ui, (Retangulo){x, y + 68, largura, 27}, "ALTURA",
+                                               tema_ativo.altura_controle, 22, 44);
+        tema_ativo.movimento_reduzido =
+            ui_checkbox(ui, (Retangulo){x, y + 105, largura, 22}, "REDUZIR MOVIMENTO",
+                        tema_ativo.movimento_reduzido);
+        if (tema_ativo.escala_percentual != escala_anterior ||
+            tema_ativo.espacamento != espacamento_anterior ||
+            tema_ativo.altura_controle != altura_anterior)
+            tema_ativo.preset = TEMA_PERSONALIZADO;
+    }
+    int rodape = r.y + r.altura - 36;
+    if (ui_botao(ui, (Retangulo){x, rodape, 130, 26},
+                 a->editor.tema_avancado ? "GUIADO" : "AVANCADO", 0))
+        a->editor.tema_avancado = !a->editor.tema_avancado;
+    if (ui_botao(ui, (Retangulo){x + 140, rodape, 118, 26}, "RESTAURAR", 0))
+        iniciar_tema_padrao();
+}
+
 static void modal_tema(Aplicativo *a, Interface *ui) {
     Retangulo r = iniciar_modal(ui, "EDITOR COMPLETO DE TEMA", 900, 590);
-    const char *nomes[] = {"FUNDO",   "PAINEL", "PAINEL ELEVADO", "CONTROLE",    "CONTROLE SOBRE",
-                           "SELECAO", "BORDA",  "TEXTO",          "TEXTO SUAVE", "DESTAQUE",
-                           "PERIGO",  "AVISO",  "SUCESSO"};
-    int y = r.y + 44, compacto = r.largura < 760;
+    if (r.largura < 760) {
+        tema_compacto(a, ui, r);
+        return;
+    }
+    const char *nomes[] = {"FUNDO",          "PAINEL",       "PAINEL ELEVADO", "CONTROLE",
+                           "CONTROLE SOBRE", "SELECAO",      "BORDA",          "TEXTO",
+                           "TEXTO SUAVE",    "DESTAQUE",     "PERIGO",         "AVISO",
+                           "SUCESSO",        "BARRA",        "LATERAL",        "LATERAL SOBRE",
+                           "CANVAS",         "SOBREPOSICAO", "FOCO",           "DESABILITADO"};
+    int y = r.y + 44, compacto = 0;
     if (ui_botao(ui, (Retangulo){r.x + r.largura - 258, r.y + 38, 112, 26},
                  a->idioma_editor == IDIOMA_INGLES ? "EDITOR: EN" : "EDITOR: PT", 0)) {
         a->idioma_editor = a->idioma_editor == IDIOMA_INGLES ? IDIOMA_PORTUGUES : IDIOMA_INGLES;
@@ -1082,10 +1223,12 @@ static void modal_tema(Aplicativo *a, Interface *ui) {
             a->projeto.idioma_interface == IDIOMA_INGLES ? IDIOMA_PORTUGUES : IDIOMA_INGLES;
         a->editor.alterado = 1;
     }
-    for (int i = 0; i < 13; ++i) {
+    int quantidade_cores = a->editor.tema_avancado ? 20 : 7;
+    if (a->editor.cor_tema_selecionada >= quantidade_cores)
+        a->editor.cor_tema_selecionada = 0;
+    for (int i = 0; i < quantidade_cores; ++i) {
         Cor *cor = cor_tema_por_indice(i);
-        int coluna = compacto ? i / 7 : 0, linha = compacto ? i % 7 : i,
-            base_x = r.x + 20 + coluna * 135;
+        int coluna = i / 10, linha = i % 10, base_x = r.x + 20 + coluna * 135;
         Retangulo amostra = {base_x, y + linha * 32, 22, 24};
         preencher_retangulo(ui->tela, amostra, *cor);
         contornar_retangulo(ui->tela, amostra, tema_ativo.borda);
@@ -1093,10 +1236,25 @@ static void modal_tema(Aplicativo *a, Interface *ui) {
                      nomes[i], a->editor.cor_tema_selecionada == i))
             a->editor.cor_tema_selecionada = i;
     }
+    int x = r.x + 300;
+    y = r.y + 78;
+    if (ui_botao(ui, (Retangulo){x, r.y + 42, 136, 27}, "ARCANO",
+                 tema_ativo.preset == TEMA_ARCANO)) {
+        int escala = tema_ativo.escala_percentual, movimento = tema_ativo.movimento_reduzido;
+        iniciar_tema_arcano();
+        tema_ativo.escala_percentual = escala;
+        tema_ativo.movimento_reduzido = movimento;
+    }
+    if (ui_botao(ui, (Retangulo){x + 146, r.y + 42, 154, 27}, "PERGAMINHO",
+                 tema_ativo.preset == TEMA_PERGAMINHO)) {
+        int escala = tema_ativo.escala_percentual, movimento = tema_ativo.movimento_reduzido;
+        iniciar_tema_pergaminho();
+        tema_ativo.escala_percentual = escala;
+        tema_ativo.movimento_reduzido = movimento;
+    }
     Cor *cor = cor_tema_por_indice(a->editor.cor_tema_selecionada);
     int rr = (*cor >> 16) & 255, gg = (*cor >> 8) & 255, bb = *cor & 255;
-    int x = r.x + 300;
-    y = r.y + 58;
+    int rr_anterior = rr, gg_anterior = gg, bb_anterior = bb;
     desenhar_texto(ui->tela, x, y, "COR SELECIONADA", tema_ativo.destaque, 1);
     y += 24;
     rr = ui_numero(ui, (Retangulo){x, y, 300, 28}, "VERMELHO", rr, 0, 255);
@@ -1106,6 +1264,10 @@ static void modal_tema(Aplicativo *a, Interface *ui) {
     bb = ui_numero(ui, (Retangulo){x, y, 300, 28}, "AZUL", bb, 0, 255);
     y += 42;
     *cor = cor_rgb((unsigned)rr, (unsigned)gg, (unsigned)bb);
+    if (rr != rr_anterior || gg != gg_anterior || bb != bb_anterior)
+        tema_ativo.preset = TEMA_PERSONALIZADO;
+    int escala_anterior = tema_ativo.escala_percentual,
+        espacamento_anterior = tema_ativo.espacamento, altura_anterior = tema_ativo.altura_controle;
     tema_ativo.escala_percentual = ui_numero(ui, (Retangulo){x, y, 300, 28}, "ESCALA %",
                                              tema_ativo.escala_percentual, 100, 200);
     y += 38;
@@ -1114,7 +1276,14 @@ static void modal_tema(Aplicativo *a, Interface *ui) {
     y += 38;
     tema_ativo.altura_controle =
         ui_numero(ui, (Retangulo){x, y, 300, 28}, "ALTURA", tema_ativo.altura_controle, 22, 44);
-    y += 48;
+    if (tema_ativo.escala_percentual != escala_anterior ||
+        tema_ativo.espacamento != espacamento_anterior ||
+        tema_ativo.altura_controle != altura_anterior)
+        tema_ativo.preset = TEMA_PERSONALIZADO;
+    y += 38;
+    tema_ativo.movimento_reduzido = ui_checkbox(ui, (Retangulo){x, y, 250, 22}, "REDUZIR MOVIMENTO",
+                                                tema_ativo.movimento_reduzido);
+    y += 38;
     if (!compacto) {
         preencher_retangulo(ui->tela, (Retangulo){x, y, 520, 110}, tema_ativo.painel);
         desenhar_texto(ui->tela, x + 14, y + 14, "PRE-VISUALIZACAO AO VIVO", tema_ativo.texto, 1);
@@ -1123,18 +1292,24 @@ static void modal_tema(Aplicativo *a, Interface *ui) {
         ui_campo(ui, (Retangulo){x + 14, y + 78, 310, 25}, tema_ativo.nome,
                  sizeof(tema_ativo.nome));
     }
-    if (ui_botao(ui, (Retangulo){r.x + 20, r.y + r.altura - 45, 130, 27}, "RESTAURAR", 0))
+    if (ui_botao(ui, (Retangulo){r.x + 20, r.y + r.altura - 45, 130, 27},
+                 a->editor.tema_avancado ? "GUIADO" : "AVANCADO", 0))
+        a->editor.tema_avancado = !a->editor.tema_avancado;
+    if (ui_botao(ui, (Retangulo){r.x + 155, r.y + r.altura - 45, 115, 27}, "RESTAURAR", 0))
         iniciar_tema_padrao();
     if (!a->campo_tema[0])
         copiar_texto(a->campo_tema, sizeof(a->campo_tema), "tema_mythara.myt");
     if (!compacto)
-        ui_campo(ui, (Retangulo){r.x + 165, r.y + r.altura - 45, 285, 27}, a->campo_tema,
+        ui_campo(ui, (Retangulo){r.x + 280, r.y + r.altura - 45, 170, 27}, a->campo_tema,
                  sizeof(a->campo_tema));
     if (!compacto &&
         ui_botao(ui, (Retangulo){r.x + 460, r.y + r.altura - 45, 105, 27}, "IMPORTAR", 0)) {
-        mensagem_aplicativo(a, carregar_tema_arquivo(a->campo_tema)
-                                   ? "Tema importado."
-                                   : "Nao foi possivel importar o tema.");
+        int importado = carregar_tema_arquivo(a->campo_tema);
+        mensagem_aplicativo(
+            a, importado ? "Tema v5 importado."
+                         : (tema_arquivo_legado
+                                ? "Temas v4 nao sao compativeis; recrie e exporte como v5."
+                                : "Nao foi possivel importar o tema v5."));
     }
     if (!compacto &&
         ui_botao(ui, (Retangulo){r.x + 575, r.y + r.altura - 45, 105, 27}, "EXPORTAR", 0)) {
@@ -1142,7 +1317,8 @@ static void modal_tema(Aplicativo *a, Interface *ui) {
                                    ? "Tema exportado."
                                    : "Nao foi possivel exportar o tema.");
     }
-    if (ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 45, 90, 27}, "CONCLUIR",
+    if (!desenhando_workspace &&
+        ui_botao(ui, (Retangulo){r.x + r.largura - 112, r.y + r.altura - 45, 90, 27}, "CONCLUIR",
                  0))
         a->modal = MODAL_NENHUM;
 }
@@ -1242,16 +1418,15 @@ static void modal_validacao(Aplicativo *a, Interface *ui) {
     if (ui_botao(ui, (Retangulo){r.x + r.largura - 125, r.y + r.altura - 52, 100, 30}, "CORRIGIR",
                  0)) {
         if (strstr(a->erro_validacao, "Evento"))
-            a->modal = MODAL_EVENTOS;
+            a->editor.layout_ativo = LAYOUT_EVENTOS;
         else if (strstr(a->erro_validacao, "Recurso"))
-            a->modal = MODAL_RECURSOS;
+            a->editor.layout_ativo = LAYOUT_RECURSOS;
         else if (strstr(a->erro_validacao, "Heroi") || strstr(a->erro_validacao, "Classe") ||
                  strstr(a->erro_validacao, "Habilidade") || strstr(a->erro_validacao, "Item") ||
                  strstr(a->erro_validacao, "Inimigo") || strstr(a->erro_validacao, "Estado") ||
                  strstr(a->erro_validacao, "Loja") || strstr(a->erro_validacao, "Missao"))
-            a->modal = MODAL_BANCO;
-        else
-            a->modal = MODAL_NENHUM;
+            a->editor.layout_ativo = LAYOUT_BANCO;
+        a->modal = MODAL_NENHUM;
     }
 }
 
@@ -1344,17 +1519,13 @@ static void executar_acao_paleta(Aplicativo *a, int acao) {
     if (acao == 0)
         salvar_projeto_atual(a);
     else if (acao == 1) {
-        a->modal = MODAL_EVENTOS;
-        return;
+        a->editor.layout_ativo = LAYOUT_EVENTOS;
     } else if (acao == 2) {
-        a->modal = MODAL_BANCO;
-        return;
+        a->editor.layout_ativo = LAYOUT_BANCO;
     } else if (acao == 3) {
-        a->modal = MODAL_RECURSOS;
-        return;
+        a->editor.layout_ativo = LAYOUT_RECURSOS;
     } else if (acao == 4) {
-        a->modal = MODAL_TEMA;
-        return;
+        a->editor.layout_ativo = LAYOUT_TEMA;
     } else if (acao == 5)
         desfazer_edicao(a);
     else if (acao == 6)
@@ -1387,26 +1558,326 @@ static void modal_comandos(Aplicativo *a, Interface *ui) {
 
 /* Composicao final do workspace ------------------------------------------- */
 
+static void workspace_projeto(Aplicativo *a, Interface *ui, Retangulo area) {
+    preencher_retangulo(ui->tela, area, tema_ativo.canvas);
+    int largura = limitar_int(area.largura - 32, 420, 780);
+    if (largura > area.largura - 16)
+        largura = area.largura - 16;
+    Retangulo r = {area.x + (area.largura - largura) / 2, area.y + 16, largura, area.altura - 32};
+    ui_painel(ui->tela, r, "PROJETO E PREFERENCIAS");
+    int x = r.x + 22, y = r.y + 48, largura_campo = r.largura - 44;
+    if (r.altura < 430) {
+        int coluna = (largura_campo - 14) / 2, direita = x + coluna + 14;
+        desenhar_texto(ui->tela, x, y, "NOME DO PROJETO", tema_ativo.texto_suave, 1);
+        if (ui_campo(ui, (Retangulo){x, y + 16, coluna, 28}, a->projeto.nome,
+                     sizeof(a->projeto.nome)))
+            a->editor.alterado = 1;
+        if (ui_botao(ui, (Retangulo){x, y + 54, (coluna - 6) / 2, 28}, "NOVO", 0))
+            a->modal = MODAL_NOVO;
+        if (ui_botao(ui, (Retangulo){x + (coluna - 6) / 2 + 6, y + 54, (coluna - 6) / 2, 28},
+                     "ABRIR", 0)) {
+            a->modal = MODAL_CAMINHO;
+            a->acao_caminho = ACAO_ABRIR;
+            copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), a->caminho_projeto);
+        }
+        if (ui_botao(ui, (Retangulo){x, y + 88, (coluna - 6) / 2, 28}, "SALVAR COMO", 0)) {
+            a->modal = MODAL_CAMINHO;
+            a->acao_caminho = ACAO_SALVAR_COMO;
+            copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), a->caminho_projeto);
+        }
+        if (ui_botao(ui, (Retangulo){x + (coluna - 6) / 2 + 6, y + 88, (coluna - 6) / 2, 28},
+                     "EXPORTAR", 0)) {
+            a->modal = MODAL_CAMINHO;
+            a->acao_caminho = ACAO_EXPORTAR;
+            copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), "exportacao_mythara");
+        }
+        desenhar_texto_forte(ui->tela, direita, y, "PREFERENCIAS", tema_ativo.destaque, 1);
+        if (ui_botao(ui, (Retangulo){direita, y + 20, coluna, 28},
+                     a->idioma_editor == IDIOMA_INGLES ? "EDITOR: EN" : "EDITOR: PT", 0)) {
+            a->idioma_editor = a->idioma_editor == IDIOMA_INGLES ? IDIOMA_PORTUGUES : IDIOMA_INGLES;
+            idioma_definir((IdiomaMythara)a->idioma_editor);
+        }
+        if (ui_botao(ui, (Retangulo){direita, y + 54, coluna, 28},
+                     a->projeto.idioma_interface == IDIOMA_INGLES ? "JOGO: EN" : "JOGO: PT", 0)) {
+            a->projeto.idioma_interface =
+                a->projeto.idioma_interface == IDIOMA_INGLES ? IDIOMA_PORTUGUES : IDIOMA_INGLES;
+            a->editor.alterado = 1;
+        }
+        a->dicas_ativas =
+            ui_checkbox(ui, (Retangulo){direita, y + 91, coluna, 22}, "DICAS", a->dicas_ativas);
+        tema_ativo.movimento_reduzido =
+            ui_checkbox(ui, (Retangulo){direita, y + 120, coluna, 22}, "REDUZIR MOVIMENTO",
+                        tema_ativo.movimento_reduzido);
+        desenhar_texto(ui->tela, x, r.y + r.altura - 23,
+                       "PROJETOS/SAVES V4  |  CONFIGURACAO/TEMAS V5", tema_ativo.texto_suave, 1);
+        return;
+    }
+    desenhar_texto(ui->tela, x, y, "NOME DO PROJETO", tema_ativo.texto_suave, 1);
+    y += 17;
+    if (ui_campo(ui, (Retangulo){x, y, largura_campo, 29}, a->projeto.nome,
+                 sizeof(a->projeto.nome)))
+        a->editor.alterado = 1;
+    y += 45;
+    int largura_botao = (largura_campo - 18) / 4;
+    if (ui_botao(ui, (Retangulo){x, y, largura_botao, 30}, "NOVO", 0))
+        a->modal = MODAL_NOVO;
+    if (ui_botao(ui, (Retangulo){x + largura_botao + 6, y, largura_botao, 30}, "ABRIR", 0)) {
+        a->modal = MODAL_CAMINHO;
+        a->acao_caminho = ACAO_ABRIR;
+        copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), a->caminho_projeto);
+    }
+    if (ui_botao(ui, (Retangulo){x + (largura_botao + 6) * 2, y, largura_botao, 30}, "SALVAR COMO",
+                 0)) {
+        a->modal = MODAL_CAMINHO;
+        a->acao_caminho = ACAO_SALVAR_COMO;
+        copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), a->caminho_projeto);
+    }
+    if (ui_botao(ui, (Retangulo){x + (largura_botao + 6) * 3, y, largura_botao, 30}, "EXPORTAR",
+                 0)) {
+        a->modal = MODAL_CAMINHO;
+        a->acao_caminho = ACAO_EXPORTAR;
+        copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), "exportacao_mythara");
+    }
+    y += 52;
+    desenhar_texto_forte(ui->tela, x, y, "IDIOMAS", tema_ativo.destaque, 1);
+    y += 22;
+    if (ui_botao(ui, (Retangulo){x, y, 190, 29},
+                 a->idioma_editor == IDIOMA_INGLES ? "EDITOR: EN" : "EDITOR: PT", 0)) {
+        a->idioma_editor = a->idioma_editor == IDIOMA_INGLES ? IDIOMA_PORTUGUES : IDIOMA_INGLES;
+        idioma_definir((IdiomaMythara)a->idioma_editor);
+    }
+    if (ui_botao(ui, (Retangulo){x + 200, y, 190, 29},
+                 a->projeto.idioma_interface == IDIOMA_INGLES ? "JOGO: EN" : "JOGO: PT", 0)) {
+        a->projeto.idioma_interface =
+            a->projeto.idioma_interface == IDIOMA_INGLES ? IDIOMA_PORTUGUES : IDIOMA_INGLES;
+        a->editor.alterado = 1;
+    }
+    y += 52;
+    desenhar_texto_forte(ui->tela, x, y, "ACESSIBILIDADE E CONFORTO", tema_ativo.destaque, 1);
+    y += 25;
+    a->dicas_ativas =
+        ui_checkbox(ui, (Retangulo){x, y, 310, 22}, "MOSTRAR DICAS CONTEXTUAIS", a->dicas_ativas);
+    y += 31;
+    tema_ativo.movimento_reduzido = ui_checkbox(ui, (Retangulo){x, y, 310, 22}, "REDUZIR MOVIMENTO",
+                                                tema_ativo.movimento_reduzido);
+    y += 48;
+    desenhar_texto_forte(ui->tela, x, y, "DOCUMENTO", tema_ativo.destaque, 1);
+    y += 22;
+    desenhar_texto(ui->tela, x, y, a->caminho_projeto, tema_ativo.texto, 1);
+    y += 22;
+    desenhar_texto(ui->tela, x, y, "PROJETOS E SAVES: V4  |  CONFIGURACAO E TEMAS: V5",
+                   tema_ativo.texto_suave, 1);
+}
+
+static Tela tela_workspace_virtual;
+
+static void desenhar_conteudo_workspace(Aplicativo *a, Interface *ui, Retangulo area) {
+    desenhando_workspace = 1;
+    area_workspace = area;
+    if (a->editor.layout_ativo == LAYOUT_EVENTOS)
+        modal_eventos(a, ui);
+    else if (a->editor.layout_ativo == LAYOUT_BANCO)
+        modal_banco(a, ui);
+    else if (a->editor.layout_ativo == LAYOUT_RECURSOS)
+        modal_recursos(a, ui);
+    else if (a->editor.layout_ativo == LAYOUT_TEMA)
+        modal_tema(a, ui);
+    else if (a->editor.layout_ativo == LAYOUT_AJUDA)
+        modal_ajuda(a, ui);
+    else
+        workspace_projeto(a, ui, area);
+    desenhando_workspace = 0;
+}
+
+static void desenhar_workspace_auxiliar(Aplicativo *a, Interface *ui, Retangulo area) {
+    int layout = a->editor.layout_ativo;
+    ui_definir_escopo(ui, 10 + layout);
+    int virtual = (layout == LAYOUT_BANCO || layout == LAYOUT_RECURSOS) &&
+                  (area.largura < 900 || area.altura < 500);
+    if (!virtual) {
+        desenhar_conteudo_workspace(a, ui, area);
+        return;
+    }
+    const int largura_virtual = 1056, altura_virtual = 666;
+    if (!redimensionar_tela_memoria(&tela_workspace_virtual, largura_virtual, altura_virtual)) {
+        desenhar_conteudo_workspace(a, ui, area);
+        return;
+    }
+    int *rolagem_x = &a->editor.rolagem_workspace_x[layout],
+        *rolagem_y = &a->editor.rolagem_workspace_y[layout];
+    int maximo_x = largura_virtual - area.largura, maximo_y = altura_virtual - area.altura;
+    int mouse_na_area = ponto_em_retangulo(ui->entrada->mouse_x, ui->entrada->mouse_y, area);
+    if (mouse_na_area && ui->entrada->roda) {
+        if (ui->entrada->shift)
+            *rolagem_x -= ui->entrada->roda * 64;
+        else
+            *rolagem_y -= ui->entrada->roda * 64;
+    }
+    if (ui->entrada->controle && ui->entrada->teclas_pressionadas[128])
+        *rolagem_x -= 64;
+    if (ui->entrada->controle && ui->entrada->teclas_pressionadas[129])
+        *rolagem_x += 64;
+    if (ui->entrada->controle && ui->entrada->teclas_pressionadas[130])
+        *rolagem_y -= 64;
+    if (ui->entrada->controle && ui->entrada->teclas_pressionadas[131])
+        *rolagem_y += 64;
+    *rolagem_x = limitar_int(*rolagem_x, 0, maximo_x);
+    *rolagem_y = limitar_int(*rolagem_y, 0, maximo_y);
+
+    Entrada entrada_virtual = *ui->entrada;
+    entrada_virtual.roda = 0;
+    if (mouse_na_area) {
+        entrada_virtual.mouse_x = ui->entrada->mouse_x - area.x + *rolagem_x;
+        entrada_virtual.mouse_y = ui->entrada->mouse_y - area.y + *rolagem_y;
+    } else
+        entrada_virtual.mouse_x = entrada_virtual.mouse_y = -10000;
+    Interface ui_virtual = *ui;
+    ui_virtual.tela = &tela_workspace_virtual;
+    ui_virtual.entrada = &entrada_virtual;
+    ui_virtual.rotulo_quente = NULL;
+    limpar_tela(&tela_workspace_virtual, tema_ativo.canvas);
+    desenhar_conteudo_workspace(a, &ui_virtual, (Retangulo){0, 0, largura_virtual, altura_virtual});
+    copiar_recorte_tela(&tela_workspace_virtual, ui->tela,
+                        (Retangulo){*rolagem_x, *rolagem_y, area.largura, area.altura}, area.x,
+                        area.y);
+    Tela *tela_original = ui->tela;
+    Entrada *entrada_original = ui->entrada;
+    *ui = ui_virtual;
+    ui->tela = tela_original;
+    ui->entrada = entrada_original;
+    if (maximo_x > 0) {
+        Retangulo trilho = {area.x + 4, area.y + area.altura - 6, area.largura - 12, 4};
+        preencher_retangulo(ui->tela, trilho, tema_ativo.painel_elevado);
+        int largura_cursor = trilho.largura * area.largura / largura_virtual;
+        int cursor_x = trilho.x + (trilho.largura - largura_cursor) * *rolagem_x / maximo_x;
+        preencher_retangulo(ui->tela, (Retangulo){cursor_x, trilho.y, largura_cursor, 4},
+                            tema_ativo.destaque);
+    }
+    if (maximo_y > 0) {
+        Retangulo trilho = {area.x + area.largura - 6, area.y + 4, 4, area.altura - 12};
+        preencher_retangulo(ui->tela, trilho, tema_ativo.painel_elevado);
+        int altura_cursor = trilho.altura * area.altura / altura_virtual;
+        int cursor_y = trilho.y + (trilho.altura - altura_cursor) * *rolagem_y / maximo_y;
+        preencher_retangulo(ui->tela, (Retangulo){trilho.x, cursor_y, 4, altura_cursor},
+                            tema_ativo.destaque);
+    }
+}
+
+static void liberar_workspace_virtual(void) {
+    free(tela_workspace_virtual.pixels);
+    memset(&tela_workspace_virtual, 0, sizeof(tela_workspace_virtual));
+}
+
+static void desenhar_modal_ativo(Aplicativo *a, Interface *ui) {
+    if (a->modal != MODAL_NENHUM)
+        ui_definir_escopo(ui, 40 + a->modal);
+    if (a->modal == MODAL_CAMINHO)
+        modal_caminho(a, ui);
+    else if (a->modal == MODAL_NOVO)
+        modal_novo(a, ui);
+    else if (a->modal == MODAL_COMANDOS)
+        modal_comandos(a, ui);
+    else if (a->modal == MODAL_RECUPERACAO)
+        modal_recuperacao(a, ui);
+    else if (a->modal == MODAL_BOAS_VINDAS)
+        modal_boas_vindas(a, ui);
+    else if (a->modal == MODAL_MIGRACAO)
+        modal_migracao(a, ui);
+    else if (a->modal == MODAL_VALIDACAO)
+        modal_validacao(a, ui);
+    else if (a->modal == MODAL_DESCARTAR)
+        modal_descartar(a, ui);
+}
+
+static void desenhar_dica_contextual(Aplicativo *a, Interface *ui) {
+    static int id_anterior, quadros_sobre;
+    if (ui->id_quente != id_anterior) {
+        id_anterior = ui->id_quente;
+        quadros_sobre = 0;
+    } else if (ui->id_quente)
+        quadros_sobre++;
+    if (a->dicas_ativas && ui->rotulo_quente && ui->rotulo_quente[0] && !ui->entrada->mouse_baixo &&
+        quadros_sobre >= 30) {
+        int w = limitar_int((int)strlen(ui->rotulo_quente) * 6 + 16, 60, 260),
+            x = limitar_int(ui->entrada->mouse_x + 14, 0, ui->tela->largura - w),
+            y = limitar_int(ui->entrada->mouse_y + 18, 0, ui->tela->altura - 24);
+        preencher_retangulo(ui->tela, (Retangulo){x, y, w, 22}, tema_ativo.painel_elevado);
+        contornar_retangulo(ui->tela, (Retangulo){x, y, w, 22}, tema_ativo.destaque);
+        desenhar_texto(ui->tela, x + 8, y + 8, ui->rotulo_quente, tema_ativo.texto, 1);
+    }
+}
+
+static void finalizar_foco_modal(Aplicativo *a, Interface *ui) {
+    static TipoModal modal_quadro_anterior = MODAL_NENHUM;
+    static int foco_antes_modal;
+    if (modal_quadro_anterior == MODAL_NENHUM && a->modal != MODAL_NENHUM)
+        foco_antes_modal = ui->id_foco;
+    else if (modal_quadro_anterior != MODAL_NENHUM && a->modal == MODAL_NENHUM)
+        ui->id_foco = foco_antes_modal;
+    modal_quadro_anterior = a->modal;
+}
+
 static void desenhar_editor(Aplicativo *a, Interface *ui) {
     Editor *e = &a->editor;
-    if (a->modal == MODAL_NENHUM && e->layout_ativo != LAYOUT_MAPA)
-        e->layout_ativo = LAYOUT_MAPA;
+    if (a->modal == MODAL_EVENTOS) {
+        e->layout_ativo = LAYOUT_EVENTOS;
+        a->modal = MODAL_NENHUM;
+    } else if (a->modal == MODAL_BANCO) {
+        e->layout_ativo = LAYOUT_BANCO;
+        a->modal = MODAL_NENHUM;
+    } else if (a->modal == MODAL_RECURSOS) {
+        e->layout_ativo = LAYOUT_RECURSOS;
+        a->modal = MODAL_NENHUM;
+    } else if (a->modal == MODAL_TEMA) {
+        e->layout_ativo = LAYOUT_TEMA;
+        a->modal = MODAL_NENHUM;
+    } else if (a->modal == MODAL_AJUDA) {
+        e->layout_ativo = LAYOUT_AJUDA;
+        a->modal = MODAL_NENHUM;
+    }
     editor_barra_superior(a, ui);
+    int largura_barra = editor_barra_lateral(a, ui);
+    ui_definir_escopo(ui, 10 + e->layout_ativo);
+    int base = ui->tela->altura - 24;
+    if (e->layout_ativo != LAYOUT_MAPA) {
+        desenhar_workspace_auxiliar(
+            a, ui, (Retangulo){largura_barra, 44, ui->tela->largura - largura_barra, base - 44});
+        preencher_retangulo(ui->tela, (Retangulo){0, base, ui->tela->largura, 24},
+                            tema_ativo.painel_elevado);
+        const char *nomes[] = {"MAPAS", "EVENTOS", "BANCO", "RECURSOS", "TEMA", "PROJETO", "AJUDA"};
+        char status[420];
+        int workspace_rolavel =
+            (e->layout_ativo == LAYOUT_BANCO || e->layout_ativo == LAYOUT_RECURSOS) &&
+            (ui->tela->largura - largura_barra < 900 || base - 44 < 500);
+        snprintf(
+            status, sizeof(status), "%s  |  %s%.300s%s", idioma_traduzir(nomes[e->layout_ativo]),
+            e->alterado ? "* " : "", idioma_traduzir(a->mensagem),
+            workspace_rolavel ? idioma_traduzir("  |  RODA: ROLAR  SHIFT+RODA: HORIZONTAL") : "");
+        desenhar_texto(ui->tela, largura_barra + 8, base + 8, status, tema_ativo.texto_suave, 1);
+        desenhar_modal_ativo(a, ui);
+        desenhar_dica_contextual(a, ui);
+        if (ui->entrada->teclas_pressionadas[27] && a->modal != MODAL_NENHUM)
+            a->modal = MODAL_NENHUM;
+        finalizar_foco_modal(a, ui);
+        return;
+    }
     e->largura_arvore = limitar_int(e->largura_arvore, 190, 360);
     e->largura_inspetor = limitar_int(e->largura_inspetor, 250, 420);
     e->altura_inferior = limitar_int(e->altura_inferior, 95, 240);
-    int base = ui->tela->altura - 28, compacto = ui->tela->largura < 900,
-        centro_x = compacto ? 0 : e->largura_arvore + 4,
-        centro_largura = compacto ? ui->tela->largura
-                                  : ui->tela->largura - e->largura_arvore - e->largura_inspetor - 8;
+    int compacto = ui->tela->largura < 900,
+        centro_x = compacto ? largura_barra : largura_barra + e->largura_arvore + 4,
+        centro_largura = compacto ? ui->tela->largura - largura_barra
+                                  : ui->tela->largura - largura_barra - e->largura_arvore -
+                                        e->largura_inspetor - 8;
     if (!compacto && centro_largura < 320) {
         compacto = 1;
-        centro_x = 0;
-        centro_largura = ui->tela->largura;
+        centro_x = largura_barra;
+        centro_largura = ui->tela->largura - largura_barra;
     }
-    int divisor_direito = centro_x + centro_largura, divisor_baixo = base - e->altura_inferior;
-    Retangulo div_esq = {e->largura_arvore, 70, 4, base - 70},
-              div_dir = {divisor_direito, 70, 4, base - 70},
+    int divisor_direito = centro_x + centro_largura,
+        divisor_baixo = base - (e->painel_inferior_aberto ? e->altura_inferior : 0);
+    Retangulo div_esq = {largura_barra + e->largura_arvore, 44, 4, base - 44},
+              div_dir = {divisor_direito, 44, 4, base - 44},
               div_baixo = {centro_x, divisor_baixo - 4, centro_largura, 4};
     Entrada *in = ui->entrada;
     if (in->mouse_pressionado) {
@@ -1414,12 +1885,13 @@ static void desenhar_editor(Aplicativo *a, Interface *ui) {
             e->divisor_ativo = 1;
         else if (!compacto && ponto_em_retangulo(in->mouse_x, in->mouse_y, div_dir))
             e->divisor_ativo = 2;
-        else if (ponto_em_retangulo(in->mouse_x, in->mouse_y, div_baixo))
+        else if (e->painel_inferior_aberto &&
+                 ponto_em_retangulo(in->mouse_x, in->mouse_y, div_baixo))
             e->divisor_ativo = 3;
     }
     if (in->mouse_baixo) {
         if (e->divisor_ativo == 1)
-            e->largura_arvore = in->mouse_x;
+            e->largura_arvore = in->mouse_x - largura_barra;
         if (e->divisor_ativo == 2)
             e->largura_inspetor = ui->tela->largura - in->mouse_x;
         if (e->divisor_ativo == 3)
@@ -1428,25 +1900,25 @@ static void desenhar_editor(Aplicativo *a, Interface *ui) {
     if (in->mouse_solto)
         e->divisor_ativo = 0;
     if (!compacto) {
-        editor_painel_esquerdo(a, ui, (Retangulo){0, 70, e->largura_arvore, base - 70});
+        editor_painel_esquerdo(a, ui, (Retangulo){largura_barra, 44, e->largura_arvore, base - 44});
         editor_inspetor(a, ui,
-                        (Retangulo){divisor_direito + 4, 70, e->largura_inspetor, base - 70});
+                        (Retangulo){divisor_direito + 4, 44, e->largura_inspetor, base - 44});
     }
-    preencher_retangulo(ui->tela, (Retangulo){centro_x, 70, centro_largura, 30},
+    preencher_retangulo(ui->tela, (Retangulo){centro_x, 44, centro_largura, 30},
                         tema_ativo.painel_elevado);
     int tx = centro_x + 5;
     if (compacto) {
-        if (ui_botao(ui, (Retangulo){5, 73, 62, 24}, "ARVORE", e->gaveta_arvore))
+        if (ui_botao(ui, (Retangulo){centro_x + 5, 47, 62, 24}, "ARVORE", e->gaveta_arvore))
             e->gaveta_arvore = !e->gaveta_arvore;
-        if (ui_botao(ui, (Retangulo){71, 73, 68, 24}, "INSPETOR", e->gaveta_inspetor))
+        if (ui_botao(ui, (Retangulo){centro_x + 71, 47, 68, 24}, "INSPETOR", e->gaveta_inspetor))
             e->gaveta_inspetor = !e->gaveta_inspetor;
-        tx = 144;
+        tx = centro_x + 144;
     }
     for (int i = 0; i < a->projeto.quantidade_mapas && i < 8; ++i) {
         int w = limitar_int((int)strlen(a->projeto.mapas[i].nome) * 6 + 24, 70, 150);
-        if (tx + w > divisor_direito)
+        if (tx + w > divisor_direito - 76)
             break;
-        if (ui_botao(ui, (Retangulo){tx, 73, w, 24}, a->projeto.mapas[i].nome,
+        if (ui_botao(ui, (Retangulo){tx, 47, w, 24}, a->projeto.mapas[i].nome,
                      e->mapa_atual == i)) {
             e->mapa_atual = i;
             e->entidade_selecionada = -1;
@@ -1454,18 +1926,23 @@ static void desenhar_editor(Aplicativo *a, Interface *ui) {
         }
         tx += w + 3;
     }
-    editor_canvas(a, ui, (Retangulo){centro_x, 100, centro_largura, divisor_baixo - 104});
-    editor_painel_inferior(
-        a, ui, (Retangulo){centro_x, divisor_baixo, centro_largura, e->altura_inferior});
+    if (ui_botao(ui, (Retangulo){divisor_direito - 72, 47, 68, 24}, "PAINEL",
+                 e->painel_inferior_aberto))
+        e->painel_inferior_aberto = !e->painel_inferior_aberto;
+    editor_canvas(a, ui, (Retangulo){centro_x, 74, centro_largura, divisor_baixo - 78});
+    if (e->painel_inferior_aberto)
+        editor_painel_inferior(
+            a, ui, (Retangulo){centro_x, divisor_baixo, centro_largura, e->altura_inferior});
     if (compacto) {
         if (e->gaveta_arvore)
-            editor_painel_esquerdo(
-                a, ui,
-                (Retangulo){0, 100, limitar_int(e->largura_arvore, 190, ui->tela->largura - 40),
-                            base - 100});
+            editor_painel_esquerdo(a, ui,
+                                   (Retangulo){largura_barra, 74,
+                                               limitar_int(e->largura_arvore, 190,
+                                                           ui->tela->largura - largura_barra - 40),
+                                               base - 74});
         if (e->gaveta_inspetor) {
-            int w = limitar_int(e->largura_inspetor, 250, ui->tela->largura - 40);
-            editor_inspetor(a, ui, (Retangulo){ui->tela->largura - w, 100, w, base - 100});
+            int w = limitar_int(e->largura_inspetor, 250, ui->tela->largura - largura_barra - 40);
+            editor_inspetor(a, ui, (Retangulo){ui->tela->largura - w, 74, w, base - 74});
         }
     } else {
         preencher_retangulo(ui->tela, div_esq,
@@ -1473,17 +1950,18 @@ static void desenhar_editor(Aplicativo *a, Interface *ui) {
         preencher_retangulo(ui->tela, div_dir,
                             e->divisor_ativo == 2 ? tema_ativo.destaque : tema_ativo.borda);
     }
-    preencher_retangulo(ui->tela, div_baixo,
-                        e->divisor_ativo == 3 ? tema_ativo.destaque : tema_ativo.borda);
-    preencher_retangulo(ui->tela, (Retangulo){0, base, ui->tela->largura, 28},
+    if (e->painel_inferior_aberto)
+        preencher_retangulo(ui->tela, div_baixo,
+                            e->divisor_ativo == 3 ? tema_ativo.destaque : tema_ativo.borda);
+    preencher_retangulo(ui->tela, (Retangulo){0, base, ui->tela->largura, 24},
                         tema_ativo.painel_elevado);
     char status[800];
     snprintf(
         status, sizeof(status), "%s%.360s   |   %.47s   |   %.47s   |   ZOOM %d%%   |   %.250s",
         e->alterado ? "* " : "", a->caminho_projeto, a->projeto.mapas[e->mapa_atual].nome,
         a->projeto.mapas[e->mapa_atual].camadas[e->camada].nome, e->zoom * 100 / 32, a->mensagem);
-    desenhar_texto(ui->tela, 8, base + 10, status, tema_ativo.texto_suave, 1);
-    if (a->modal == MODAL_NENHUM && ui->id_foco == 0) {
+    desenhar_texto(ui->tela, largura_barra + 8, base + 8, status, tema_ativo.texto_suave, 1);
+    if (a->modal == MODAL_NENHUM && !ui->campo_texto_focado) {
         Entrada *atalho = ui->entrada;
         if (atalho->controle && atalho->teclas_pressionadas['Z'])
             desfazer_edicao(a);
@@ -1509,40 +1987,9 @@ static void desenhar_editor(Aplicativo *a, Interface *ui) {
         if (e->canvas_em_foco && atalho->teclas_pressionadas[127])
             apagar_selecao_editor(a);
     }
-    if (a->modal == MODAL_CAMINHO)
-        modal_caminho(a, ui);
-    else if (a->modal == MODAL_NOVO)
-        modal_novo(a, ui);
-    else if (a->modal == MODAL_BANCO)
-        modal_banco(a, ui);
-    else if (a->modal == MODAL_EVENTOS)
-        modal_eventos(a, ui);
-    else if (a->modal == MODAL_RECURSOS)
-        modal_recursos(a, ui);
-    else if (a->modal == MODAL_AJUDA)
-        modal_ajuda(a, ui);
-    else if (a->modal == MODAL_TEMA)
-        modal_tema(a, ui);
-    else if (a->modal == MODAL_COMANDOS)
-        modal_comandos(a, ui);
-    else if (a->modal == MODAL_RECUPERACAO)
-        modal_recuperacao(a, ui);
-    else if (a->modal == MODAL_BOAS_VINDAS)
-        modal_boas_vindas(a, ui);
-    else if (a->modal == MODAL_MIGRACAO)
-        modal_migracao(a, ui);
-    else if (a->modal == MODAL_VALIDACAO)
-        modal_validacao(a, ui);
-    else if (a->modal == MODAL_DESCARTAR)
-        modal_descartar(a, ui);
-    if (a->dicas_ativas && ui->rotulo_quente && !ui->entrada->mouse_baixo) {
-        int w = limitar_int((int)strlen(ui->rotulo_quente) * 6 + 16, 60, 260),
-            x = limitar_int(ui->entrada->mouse_x + 14, 0, ui->tela->largura - w),
-            y = limitar_int(ui->entrada->mouse_y + 18, 0, ui->tela->altura - 24);
-        preencher_retangulo(ui->tela, (Retangulo){x, y, w, 22}, tema_ativo.painel_elevado);
-        contornar_retangulo(ui->tela, (Retangulo){x, y, w, 22}, tema_ativo.destaque);
-        desenhar_texto(ui->tela, x + 8, y + 8, ui->rotulo_quente, tema_ativo.texto, 1);
-    }
-    if (ui->entrada->teclas_pressionadas[27])
+    desenhar_modal_ativo(a, ui);
+    desenhar_dica_contextual(a, ui);
+    if (ui->entrada->teclas_pressionadas[27] && a->modal != MODAL_NENHUM)
         a->modal = MODAL_NENHUM;
+    finalizar_foco_modal(a, ui);
 }

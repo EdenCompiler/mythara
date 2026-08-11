@@ -9,6 +9,14 @@ versionamento semântico para as versões do motor.
 
 - O monólito restante foi separado em módulos internos de base, modelo, renderização, interface,
   plataforma, persistência, recursos, aplicativo, editor, modais, runtime e programa.
+- O editor agora usa uma barra lateral recolhível e workspaces dedicados para mapas, eventos, banco
+  de dados, recursos, temas, projeto e ajuda.
+- A interface ganhou os presets Arcano Noturno e Pergaminho Dourado, tokens semânticos, ícones
+  embutidos, glifos acentuados, transições sutis e navegação por teclado com foco visível.
+- Temas e configurações locais usam o formato v5; projetos e saves continuam no formato v4.
+- A interface compacta agora se reorganiza em 640×360, permite rolagem nos workspaces extensos,
+  evita dicas e ações obsoletas sobre os controles, remove rótulos duplicados dos botões com ícone
+  e preserva o contraste do cabeçalho nos temas.
 
 ### Planejado
 

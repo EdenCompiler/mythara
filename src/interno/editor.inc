@@ -31,73 +31,42 @@ static void desenhar_tile_recurso(Aplicativo *a, Tela *t, Retangulo r, int tile,
 
 static void editor_barra_superior(Aplicativo *a, Interface *ui) {
     Tela *t = ui->tela;
-    int x = 8;
-    preencher_retangulo(t, (Retangulo){0, 0, t->largura, 70}, tema_ativo.fundo);
-    desenhar_texto(t, 12, 10, "MYTHARA 4", tema_ativo.destaque, 2);
-    desenhar_texto(t, 112, 15, a->projeto.nome, cor_rgb(220, 226, 234), 1);
-    const char *layouts[] = {"MAPA", "EVENTOS", "BANCO", "RECURSOS", "PLAY"};
-    int lx = t->largura - 348;
-    for (int i = 0; i < 5; ++i) {
-        if (ui_botao(ui, (Retangulo){lx + i * 68, 7, 64, 24}, layouts[i],
-                     a->editor.layout_ativo == i)) {
-            a->editor.layout_ativo = i;
-            if (i == LAYOUT_MAPA)
-                a->modal = MODAL_NENHUM;
-            else if (i == LAYOUT_EVENTOS)
-                a->modal = MODAL_EVENTOS;
-            else if (i == LAYOUT_BANCO)
-                a->modal = MODAL_BANCO;
-            else if (i == LAYOUT_RECURSOS)
-                a->modal = MODAL_RECURSOS;
-            else
-                iniciar_playtest_editor(a);
-        }
+    ui_definir_escopo(ui, 1);
+    preencher_retangulo(t, (Retangulo){0, 0, t->largura, 44}, tema_ativo.barra);
+    preencher_retangulo(t, (Retangulo){0, 43, t->largura, 1}, tema_ativo.borda);
+    int brilho_barra = (((tema_ativo.barra >> 16) & 255) * 299 +
+                        ((tema_ativo.barra >> 8) & 255) * 587 + (tema_ativo.barra & 255) * 114) /
+                       1000;
+    int brilho_destaque =
+        (((tema_ativo.destaque >> 16) & 255) * 299 + ((tema_ativo.destaque >> 8) & 255) * 587 +
+         (tema_ativo.destaque & 255) * 114) /
+        1000;
+    int diferenca = brilho_barra - brilho_destaque;
+    if (diferenca < 0)
+        diferenca = -diferenca;
+    Cor texto_barra = diferenca >= 90 ? tema_ativo.destaque : tema_ativo.painel_elevado;
+    desenhar_texto_forte(t, 14, 13, "MYTHARA", texto_barra, 2);
+    if (t->largura >= 760) {
+        desenhar_texto(t, 112, 17, "/", texto_barra, 1);
+        desenhar_texto(t, 126, 17, a->projeto.nome, texto_barra, 1);
     }
-    struct {
-        const char *nome;
-        int largura;
-    } botoes[] = {{"NOVO", 54},     {"ABRIR", 60},    {"SALVAR", 66},  {"SALVAR COMO", 92},
-                  {"EXPORTAR", 78}, {"BANCO", 60},    {"EVENTOS", 66}, {"RECURSOS", 72},
-                  {"TEMA", 54},     {"JOGAR F5", 78}, {"AJUDA", 60}};
-    x = 8;
-    for (size_t i = 0; i < sizeof(botoes) / sizeof(botoes[0]); ++i) {
-        if (x + botoes[i].largura > t->largura)
-            break;
-        if (ui_botao(ui, (Retangulo){x, 38, botoes[i].largura, 25}, botoes[i].nome, 0)) {
-            if (i == 0)
-                a->modal = MODAL_NOVO;
-            if (i == 1) {
-                a->modal = MODAL_CAMINHO;
-                a->acao_caminho = ACAO_ABRIR;
-                copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), a->caminho_projeto);
-            }
-            if (i == 2)
-                salvar_projeto_atual(a);
-            if (i == 3) {
-                a->modal = MODAL_CAMINHO;
-                a->acao_caminho = ACAO_SALVAR_COMO;
-                copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), a->caminho_projeto);
-            }
-            if (i == 4) {
-                a->modal = MODAL_CAMINHO;
-                a->acao_caminho = ACAO_EXPORTAR;
-                copiar_texto(a->campo_caminho, sizeof(a->campo_caminho), "exportacao_mythara");
-            }
-            if (i == 5)
-                a->modal = MODAL_BANCO;
-            if (i == 6)
-                a->modal = MODAL_EVENTOS;
-            if (i == 7)
-                a->modal = MODAL_RECURSOS;
-            if (i == 8)
-                a->modal = MODAL_TEMA;
-            if (i == 9)
-                iniciar_playtest_editor(a);
-            if (i == 10)
-                a->modal = MODAL_AJUDA;
-        }
-        x += botoes[i].largura + 4;
+    int x = t->largura - 244;
+    if (ui_botao(ui, (Retangulo){x - 48, 7, 42, 30},
+                 a->idioma_editor == IDIOMA_INGLES ? "EN" : "PT", 0)) {
+        a->idioma_editor = a->idioma_editor == IDIOMA_INGLES ? IDIOMA_PORTUGUES : IDIOMA_INGLES;
+        idioma_definir((IdiomaMythara)a->idioma_editor);
     }
+    if (ui_botao_icone(ui, (Retangulo){x, 7, 54, 30}, ICONE_SALVAR, "SALVAR", 0, 0))
+        salvar_projeto_atual(a);
+    x += 60;
+    if (ui_botao(ui, (Retangulo){x, 7, 42, 30}, "<-", 0))
+        desfazer_edicao(a);
+    x += 48;
+    if (ui_botao(ui, (Retangulo){x, 7, 42, 30}, "->", 0))
+        refazer_edicao(a);
+    x += 48;
+    if (ui_botao_icone(ui, (Retangulo){x, 7, 82, 30}, ICONE_JOGAR, "F5", 0, 1))
+        iniciar_playtest_editor(a);
     if (ui->entrada->teclas_pressionadas[132])
         iniciar_playtest_editor(a);
     if (ui->entrada->controle && ui->entrada->teclas_pressionadas['S']) {
@@ -119,6 +88,86 @@ static void editor_barra_superior(Aplicativo *a, Interface *ui) {
         a->modal = MODAL_COMANDOS;
         a->editor.busca_comandos[0] = 0;
     }
+}
+
+static int editor_largura_barra(Editor *e, int largura_tela) {
+    int alvo = e->barra_lateral_recolhida || largura_tela < 900 ? 52 : 192;
+    if (!e->largura_barra_animada)
+        e->largura_barra_animada = alvo;
+    if (tema_ativo.movimento_reduzido)
+        e->largura_barra_animada = alvo;
+    else if (e->largura_barra_animada < alvo)
+        e->largura_barra_animada = limitar_int(e->largura_barra_animada + 18, 52, alvo);
+    else if (e->largura_barra_animada > alvo)
+        e->largura_barra_animada = limitar_int(e->largura_barra_animada - 18, alvo, 192);
+    return e->largura_barra_animada;
+}
+
+static int editor_barra_lateral(Aplicativo *a, Interface *ui) {
+    Editor *e = &a->editor;
+    ui_definir_escopo(ui, 2);
+    int largura = editor_largura_barra(e, ui->tela->largura), expandida = largura > 120,
+        vertical_compacto = ui->tela->altura < 480;
+    Retangulo barra = {0, 44, largura, ui->tela->altura - 68};
+    preencher_retangulo(ui->tela, barra, tema_ativo.lateral);
+    preencher_retangulo(ui->tela, (Retangulo){largura - 1, barra.y, 1, barra.altura},
+                        tema_ativo.borda);
+    if (ui_botao_icone(
+            ui,
+            (Retangulo){8, vertical_compacto ? 50 : 52, largura - 16, vertical_compacto ? 28 : 32},
+            ICONE_MENU, e->barra_lateral_recolhida ? "EXPANDIR" : "RECOLHER", 0, expandida))
+        e->barra_lateral_recolhida = !e->barra_lateral_recolhida;
+    const struct {
+        const char *rotulo;
+        IconeInterface icone;
+        int layout;
+    } principais[] = {{"MAPAS", ICONE_MAPA, LAYOUT_MAPA},
+                      {"EVENTOS", ICONE_EVENTO, LAYOUT_EVENTOS},
+                      {"BANCO", ICONE_BANCO, LAYOUT_BANCO},
+                      {"RECURSOS", ICONE_RECURSO, LAYOUT_RECURSOS}},
+      utilitarios[] = {{"TEMA", ICONE_TEMA, LAYOUT_TEMA},
+                       {"PROJETO", ICONE_PROJETO, LAYOUT_PROJETO},
+                       {"AJUDA", ICONE_AJUDA, LAYOUT_AJUDA}};
+    int ids_navegacao[7] = {0}, quantidade_ids = 0;
+    int altura_item = vertical_compacto ? 30 : 38, passo_item = vertical_compacto ? 34 : 44;
+    int y = vertical_compacto ? 84 : 98;
+    for (size_t i = 0; i < sizeof(principais) / sizeof(principais[0]); ++i) {
+        ids_navegacao[quantidade_ids++] = ui_proximo_id_previsto(ui);
+        if (ui_botao_icone(ui, (Retangulo){8, y, largura - 16, altura_item}, principais[i].icone,
+                           principais[i].rotulo, e->layout_ativo == principais[i].layout,
+                           expandida)) {
+            e->layout_ativo = principais[i].layout;
+            a->modal = MODAL_NENHUM;
+            ui->id_foco = 0;
+        }
+        y += passo_item;
+    }
+    y = vertical_compacto ? barra.y + barra.altura - 3 * passo_item - 4
+                          : barra.y + barra.altura - 3 * passo_item - 10;
+    for (size_t i = 0; i < sizeof(utilitarios) / sizeof(utilitarios[0]); ++i) {
+        ids_navegacao[quantidade_ids++] = ui_proximo_id_previsto(ui);
+        if (ui_botao_icone(ui, (Retangulo){8, y, largura - 16, altura_item}, utilitarios[i].icone,
+                           utilitarios[i].rotulo, e->layout_ativo == utilitarios[i].layout,
+                           expandida)) {
+            e->layout_ativo = utilitarios[i].layout;
+            a->modal = MODAL_NENHUM;
+            ui->id_foco = 0;
+        }
+        y += passo_item;
+    }
+    for (int i = 0; i < quantidade_ids; ++i)
+        if (ui->id_foco == ids_navegacao[i]) {
+            if (ui->entrada->teclas_pressionadas[130])
+                ui->id_foco = ids_navegacao[(i + quantidade_ids - 1) % quantidade_ids];
+            if (ui->entrada->teclas_pressionadas[131])
+                ui->id_foco = ids_navegacao[(i + 1) % quantidade_ids];
+            if (ui->entrada->teclas_pressionadas[128])
+                e->barra_lateral_recolhida = 1;
+            if (ui->entrada->teclas_pressionadas[129])
+                e->barra_lateral_recolhida = 0;
+            break;
+        }
+    return largura;
 }
 
 static int texto_contem_sem_caixa(const char *texto, const char *busca) {
@@ -205,14 +254,14 @@ static void editor_painel_esquerdo(Aplicativo *a, Interface *ui, Retangulo r) {
     char resumo[96];
     snprintf(resumo, sizeof(resumo), "> EVENTOS (%d)", p->quantidade_eventos);
     if (ui_botao(ui, (Retangulo){r.x + 8, y, r.largura - 16, 24}, resumo, 0))
-        a->modal = MODAL_EVENTOS;
+        a->editor.layout_ativo = LAYOUT_EVENTOS;
     y += 28;
     snprintf(resumo, sizeof(resumo), "> RECURSOS (%d)", p->quantidade_recursos);
     if (ui_botao(ui, (Retangulo){r.x + 8, y, r.largura - 16, 24}, resumo, 0))
-        a->modal = MODAL_RECURSOS;
+        a->editor.layout_ativo = LAYOUT_RECURSOS;
     y += 28;
     if (ui_botao(ui, (Retangulo){r.x + 8, y, r.largura - 16, 24}, "> BANCO DE DADOS", 0))
-        a->modal = MODAL_BANCO;
+        a->editor.layout_ativo = LAYOUT_BANCO;
     const char *ferr[] = {"PINCEL",    "BORRACHA", "COLISAO",   "ENTIDADE",    "SELECAO",
                           "RETANGULO", "LINHA",    "PREENCHER", "CONTA-GOTAS", "CARIMBO"};
     y = r.y + r.altura - 178;
@@ -760,7 +809,7 @@ static void editor_inspetor(Aplicativo *a, Interface *ui, Retangulo r) {
         y += 35;
         if (ui_botao(ui, (Retangulo){r.x + 10, y, r.largura - 20, 27}, "EDITAR EVENTO", 0)) {
             e->evento_selecionado = n->evento;
-            a->modal = MODAL_EVENTOS;
+            a->editor.layout_ativo = LAYOUT_EVENTOS;
         }
         y += 34;
         if (ui_botao(ui, (Retangulo){r.x + 10, y, r.largura - 20, 27}, "EXCLUIR ENTIDADE", 0)) {

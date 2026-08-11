@@ -4,18 +4,20 @@ Mythara é um motor e editor visual de JRPG 2D escrito em C11. Ele reúne mapas 
 visuais, banco de dados de RPG, recursos gráficos e de áudio, playtest, combate, grupo, lojas,
 missões, autosave e exportação nativa em um único executável.
 
-A versão 4 prioriza quem está criando seu primeiro jogo: listas pesquisáveis e roláveis,
-referências mostradas por nome, validação antes de salvar/testar/exportar, proteção contra perda de
-alterações e interface em português ou inglês.
+A interface do editor prioriza quem está criando seu primeiro jogo: barra lateral recolhível,
+workspaces dedicados e pesquisáveis, referências mostradas por nome, validação antes de
+salvar/testar/exportar, proteção contra perda de alterações e navegação por mouse ou teclado em
+português ou inglês.
 
 ## Estado do projeto
 
-- Versão do motor e dos formatos: 4.0.0
+- Versão do motor e dos formatos de projeto/save: 4.0.0
+- Temas e configuração local do editor: formato v5
 - Linux: X11, com ALSA opcional
 - Windows: Win32, GDI e WinMM
 - Linguagem: C11, sem dependências incorporadas
 - Persistência portátil little-endian com CRC32 e IDs estáveis
-- 33 autotestes executáveis pelo próprio programa
+- 39 autotestes executáveis pelo próprio programa
 - Licença: MIT
 
 ## Início rápido no Linux
@@ -73,10 +75,17 @@ MYTHARA_ESCALA=200 ./mythara
 
 1. Abra a Mythara e escolha **Criar projeto limpo**.
 2. Edite o mapa inicial e use o inspetor para posicionar o herói.
-3. Abra **Banco de dados** para ajustar heróis, itens e inimigos.
+3. Use a barra lateral e abra **Banco de dados** para ajustar heróis, itens e inimigos.
 4. Crie diálogos e lógica em **Eventos** e ligue-os às entidades pelo nome.
 5. Use **Playtest**; o validador indica a área a corrigir se houver referência inválida.
 6. Salve e use **Exportar jogo** para gerar a distribuição nativa.
+
+Use `Tab` e `Shift+Tab` para percorrer controles, `Enter` ou `Espaço` para ativá-los e as setas
+para navegar pela barra lateral. `Esc` fecha o fluxo temporário atual e devolve o foco ao controle
+que o abriu. A barra lateral recolhe automaticamente em janelas estreitas.
+Em **Banco de dados** e **Recursos**, use a roda do mouse para rolar verticalmente e
+`Shift` + roda para rolar horizontalmente quando a janela estiver compacta. A interface mantém
+todos os controles acessíveis até a resolução mínima de 640×360.
 
 O editor pede confirmação antes de descartar alterações. Projetos v3 são abertos por um assistente
 que cria uma cópia v4; o arquivo original nunca é sobrescrito. Saves v3 não são migrados.
@@ -87,8 +96,11 @@ que cria uma cópia v4; o arquivo original nunca é sobrescrito. Saves v3 não s
 |---|---|
 | `.myr` | Projeto Mythara v4 |
 | `.mys` | Save v4 vinculado ao ID do projeto |
-| `.myt` | Tema portátil v4 |
-| `.myc` | Configuração local v4 |
+| `.myt` | Tema semântico portátil v5 |
+| `.myc` | Configuração local do editor v5 |
+
+Temas `.myt` v4 não são importados. Configurações `.myc` v4 são ignoradas e substituídas pelos
+novos padrões; projetos e saves v4 continuam compatíveis.
 
 Um projeto novo usa esta estrutura:
 

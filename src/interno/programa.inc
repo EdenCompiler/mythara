@@ -144,10 +144,42 @@ static int executar_autotestes(void) {
     snprintf(caminho, sizeof(caminho), "/tmp/mythara_tema_%ld.myt", (long)getpid());
     Cor fundo_tema = tema_ativo.fundo;
     int tema_portatil = salvar_tema_arquivo(caminho);
+    FILE *arquivo_tema_v5 = fopen(caminho, "rb");
+    char assinatura_tema_v5[8] = {0};
+    tema_portatil =
+        tema_portatil && arquivo_tema_v5 &&
+        fread(assinatura_tema_v5, sizeof(assinatura_tema_v5), 1, arquivo_tema_v5) == 1 &&
+        !memcmp(assinatura_tema_v5, "MYTTEM5", 7);
+    if (arquivo_tema_v5)
+        fclose(arquivo_tema_v5);
     tema_ativo.fundo = 0;
     tema_portatil =
         tema_portatil && carregar_tema_arquivo(caminho) && tema_ativo.fundo == fundo_tema;
-    VERIFICAR(tema_portatil, "tema v4 portatil com CRC32");
+    VERIFICAR(tema_portatil, "tema v5 semantico e portatil com CRC32");
+    unlink(caminho);
+    snprintf(caminho, sizeof(caminho), "/tmp/mythara_tema_v4_%ld.myt", (long)getpid());
+    EscritorBinario tema_legado = {0};
+    serializar_tema(&tema_legado, &tema_ativo);
+    const char magia_tema_v4[8] = {'M', 'Y', 'T', 'T', 'E', 'M', '4', '\0'};
+    int escreveu_tema_v4 = salvar_documento_portatil(magia_tema_v4, 4, &tema_legado, caminho);
+    escritor_binario_liberar(&tema_legado);
+    VERIFICAR(escreveu_tema_v4 && !carregar_tema_arquivo(caminho) && tema_arquivo_legado,
+              "rejeitar tema v4 com diagnostico de incompatibilidade");
+    unlink(caminho);
+    snprintf(caminho, sizeof(caminho), "/tmp/mythara_config_v4_%ld.myc", (long)getpid());
+    EscritorBinario config_legada = {0};
+    escritor_binario_i32(&config_legada, 235);
+    const char magia_config_v4[8] = {'M', 'Y', 'T', 'C', 'F', 'G', '4', '\0'};
+    const char magia_config_v5[8] = {'M', 'Y', 'T', 'C', 'F', 'G', '5', '\0'};
+    int escreveu_config_v4 = salvar_documento_portatil(magia_config_v4, 4, &config_legada, caminho);
+    escritor_binario_liberar(&config_legada);
+    uint8_t *config_rejeitada = NULL;
+    size_t tamanho_config_rejeitada = 0;
+    VERIFICAR(escreveu_config_v4 &&
+                  !carregar_documento_portatil(magia_config_v5, 5, caminho, &config_rejeitada,
+                                               &tamanho_config_rejeitada),
+              "ignorar configuracao local v4 no carregador v5");
+    free(config_rejeitada);
     unlink(caminho);
     EscritorBinario numeros = {0};
     escritor_binario_u32(&numeros, UINT32_C(0x78563412));
@@ -371,13 +403,118 @@ static int executar_autotestes(void) {
     clique.mouse_x = 14;
     clique.mouse_y = 12;
     clique.mouse_pressionado = 1;
-    Interface interface_referencia = {&tela_referencia, &clique, 0, 0, 0, 0, NULL};
+    Interface interface_referencia = {.tela = &tela_referencia, .entrada = &clique};
     idioma_definir(IDIOMA_PORTUGUES);
     limpar_tela(&tela_referencia, cor_rgb(18, 22, 30));
     int acionou = ui_botao(&interface_referencia, (Retangulo){8, 6, 80, 24}, "SALVAR", 0);
     uint32_t quadro_referencia = crc32_binario(pixels_referencia, sizeof(pixels_referencia));
-    VERIFICAR(acionou && quadro_referencia == UINT32_C(0xbafe4218),
+    VERIFICAR(acionou && quadro_referencia == UINT32_C(0xe0bbb475),
               "interacao headless e framebuffer de referencia");
+    Entrada teclado = {0};
+    teclado.teclas_pressionadas[9] = 1;
+    Interface interface_teclado = {.tela = &tela_referencia, .entrada = &teclado};
+    ui_preparar_quadro(&interface_teclado);
+    ui_botao(&interface_teclado, (Retangulo){8, 6, 80, 24}, "SALVAR", 0);
+    ui_finalizar_quadro(&interface_teclado);
+    teclado.teclas_pressionadas[9] = 0;
+    teclado.teclas_pressionadas[13] = 1;
+    Interface interface_ativacao = {
+        .tela = &tela_referencia, .entrada = &teclado, .id_foco = interface_teclado.id_foco};
+    ui_preparar_quadro(&interface_ativacao);
+    int acionou_teclado = ui_botao(&interface_ativacao, (Retangulo){8, 6, 80, 24}, "SALVAR", 0);
+    VERIFICAR(interface_teclado.id_foco != 0 && acionou_teclado,
+              "navegacao por Tab e ativacao por teclado");
+    Aplicativo *visual = calloc(1, sizeof(*visual));
+    uint32_t *pixels_editor = calloc((size_t)1280 * 720, sizeof(*pixels_editor));
+    int referencias_ui = visual && pixels_editor && clonar_projeto(&p, &visual->projeto);
+    uint32_t crc_arcano = 0, crc_pergaminho = 0, crc_tema_compacto = 0, crc_banco_compacto = 0,
+             crc_banco_rolado = 0;
+    if (referencias_ui) {
+        visual->editor.zoom = 32;
+        visual->editor.tile = 1;
+        visual->editor.entidade_selecionada = -1;
+        visual->editor.largura_arvore = 235;
+        visual->editor.largura_inspetor = 280;
+        visual->editor.altura_inferior = 150;
+        visual->editor.painel_inferior_aberto = 1;
+        copiar_texto(visual->caminho_projeto, sizeof(visual->caminho_projeto),
+                     "projeto_mythara/projeto.myr");
+        iniciar_tema_arcano();
+        Tela tela_editor = {pixels_editor, 1280, 720};
+        Entrada entrada_editor = {0};
+        Interface ui_editor = {.tela = &tela_editor, .entrada = &entrada_editor};
+        ui_preparar_quadro(&ui_editor);
+        limpar_tela(&tela_editor, tema_ativo.fundo);
+        desenhar_editor(visual, &ui_editor);
+        ui_finalizar_quadro(&ui_editor);
+        crc_arcano = crc32_binario(pixels_editor, (size_t)1280 * 720 * sizeof(*pixels_editor));
+
+        free(pixels_editor);
+        pixels_editor = calloc((size_t)640 * 360, sizeof(*pixels_editor));
+        referencias_ui = pixels_editor != NULL;
+        if (referencias_ui) {
+            iniciar_tema_pergaminho();
+            visual->editor.layout_ativo = LAYOUT_PROJETO;
+            visual->editor.largura_barra_animada = 0;
+            Tela tela_compacta = {pixels_editor, 640, 360};
+            Interface ui_compacta = {.tela = &tela_compacta, .entrada = &entrada_editor};
+            ui_preparar_quadro(&ui_compacta);
+            limpar_tela(&tela_compacta, tema_ativo.fundo);
+            desenhar_editor(visual, &ui_compacta);
+            ui_finalizar_quadro(&ui_compacta);
+            crc_pergaminho =
+                crc32_binario(pixels_editor, (size_t)640 * 360 * sizeof(*pixels_editor));
+            visual->editor.layout_ativo = LAYOUT_TEMA;
+            Interface ui_tema_compacto = {.tela = &tela_compacta, .entrada = &entrada_editor};
+            ui_preparar_quadro(&ui_tema_compacto);
+            limpar_tela(&tela_compacta, tema_ativo.fundo);
+            desenhar_editor(visual, &ui_tema_compacto);
+            ui_finalizar_quadro(&ui_tema_compacto);
+            crc_tema_compacto =
+                crc32_binario(pixels_editor, (size_t)640 * 360 * sizeof(*pixels_editor));
+            visual->editor.layout_ativo = LAYOUT_BANCO;
+            Interface ui_banco_compacto = {.tela = &tela_compacta, .entrada = &entrada_editor};
+            ui_preparar_quadro(&ui_banco_compacto);
+            limpar_tela(&tela_compacta, tema_ativo.fundo);
+            desenhar_editor(visual, &ui_banco_compacto);
+            ui_finalizar_quadro(&ui_banco_compacto);
+            crc_banco_compacto =
+                crc32_binario(pixels_editor, (size_t)640 * 360 * sizeof(*pixels_editor));
+            visual->editor.rolagem_workspace_x[LAYOUT_BANCO] = 192;
+            visual->editor.rolagem_workspace_y[LAYOUT_BANCO] = 128;
+            Interface ui_banco_rolado = {.tela = &tela_compacta, .entrada = &entrada_editor};
+            ui_preparar_quadro(&ui_banco_rolado);
+            limpar_tela(&tela_compacta, tema_ativo.fundo);
+            desenhar_editor(visual, &ui_banco_rolado);
+            ui_finalizar_quadro(&ui_banco_rolado);
+            crc_banco_rolado =
+                crc32_binario(pixels_editor, (size_t)640 * 360 * sizeof(*pixels_editor));
+        }
+    }
+    VERIFICAR(referencias_ui && crc_arcano == UINT32_C(0x2f3a4ee0) &&
+                  crc_pergaminho == UINT32_C(0xafc638df) &&
+                  crc_tema_compacto == UINT32_C(0xb26fc8d9),
+              "framebuffers completos dos temas em 1280x720 e 640x360");
+    VERIFICAR(referencias_ui && crc_banco_compacto != 0 && crc_banco_compacto != crc_banco_rolado,
+              "workspace compacto do banco permite rolagem bidimensional");
+    int navegou_barra = 0;
+    if (visual && pixels_editor) {
+        Entrada seta_barra = {0};
+        seta_barra.teclas_pressionadas[131] = 1;
+        Tela tela_barra = {pixels_editor, 640, 360};
+        Interface ui_barra = {
+            .tela = &tela_barra, .entrada = &seta_barra, .id_foco = (3 << 12) | 2};
+        editor_barra_lateral(visual, &ui_barra);
+        navegou_barra = ui_barra.id_foco == ((3 << 12) | 3);
+    }
+    VERIFICAR(navegou_barra, "setas navegam pela barra lateral com IDs estaveis");
+    if (visual) {
+        liberar_projeto(&visual->projeto);
+        free(visual);
+    }
+    free(pixels_editor);
+    liberar_workspace_virtual();
+    iniciar_tema_arcano();
     char pasta_exportada[128];
     snprintf(pasta_exportada, sizeof(pasta_exportada), "/tmp/mythara_exportacao_%ld",
              (long)getpid());
@@ -560,22 +697,28 @@ int main(int argc, char **argv) {
             Entrada entrada_logica = plataforma.entrada;
             entrada_logica.mouse_x = plataforma.entrada.mouse_x * lw / plataforma.tela.largura;
             entrada_logica.mouse_y = plataforma.entrada.mouse_y * lh / plataforma.tela.altura;
-            Interface ui = {&tela_editor, &entrada_logica, 0, 0, a->foco_interface, 0, NULL};
+            Interface ui = {
+                .tela = &tela_editor, .entrada = &entrada_logica, .id_foco = a->foco_interface};
+            ui_preparar_quadro(&ui);
             limpar_tela(&tela_editor, tema_ativo.fundo);
             desenhar_editor(a, &ui);
+            ui_finalizar_quadro(&ui);
             verificar_historico_global(a, &entrada_logica);
             realizar_autosave(a);
             a->foco_interface = ui.id_foco;
             copiar_tela_escalada(&tela_editor, &plataforma.tela);
         } else {
-            Interface ui = {
-                &plataforma.tela, &plataforma.entrada, 0, 0, a->foco_interface, 0, NULL};
+            Interface ui = {.tela = &plataforma.tela,
+                            .entrada = &plataforma.entrada,
+                            .id_foco = a->foco_interface};
+            ui_preparar_quadro(&ui);
             limpar_tela(&plataforma.tela, tema_ativo.fundo);
             if (a->modo == MODO_JOGO) {
                 atualizar_jogo(a, &plataforma.entrada);
                 desenhar_jogo(a, &ui);
             } else
                 desenhar_batalha(a, &ui);
+            ui_finalizar_quadro(&ui);
             a->foco_interface = ui.id_foco;
         }
         if (somente_jogo && a->modo == MODO_EDITOR)
@@ -589,6 +732,7 @@ int main(int argc, char **argv) {
     while (atomic_load(&a->autosave_em_andamento))
         pausar_milissegundos(10);
     free(tela_editor.pixels);
+    liberar_workspace_virtual();
     if (!somente_jogo)
         salvar_configuracao(a);
     liberar_historico_global(&a->editor);

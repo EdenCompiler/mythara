@@ -23,8 +23,8 @@ typedef struct {
 static int plataforma_redimensionar(Plataforma *p, int largura, int altura) {
     if (largura < 640)
         largura = 640;
-    if (altura < 480)
-        altura = 480;
+    if (altura < 360)
+        altura = 360;
     if (p->imagem) {
         p->imagem->data = (char *)p->tela.pixels;
         XDestroyImage(p->imagem);
@@ -205,8 +205,8 @@ static Plataforma *plataforma_win32_ativa;
 static int plataforma_redimensionar(Plataforma *p, int largura, int altura) {
     if (largura < 640)
         largura = 640;
-    if (altura < 480)
-        altura = 480;
+    if (altura < 360)
+        altura = 360;
     uint32_t *pixels = calloc((size_t)largura * (size_t)altura, sizeof(uint32_t));
     if (!pixels)
         return 0;
