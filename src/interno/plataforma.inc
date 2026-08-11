@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Plataforma X11                                                              */
-/* ========================================================================== */
+/*
+ * Modulo: plataforma
+ * Responsabilidade: janela, entrada, framebuffer e clipboard nativos.
+ * Implementacoes: X11 no Linux e Win32 no Windows.
+ */
+
+/* Backend X11 --------------------------------------------------------------- */
 
 #ifndef _WIN32
 static Display *exibidor_clipboard_x11;
@@ -185,6 +189,8 @@ static void plataforma_encerrar(Plataforma *p) {
     memset(p, 0, sizeof(*p));
 }
 #else
+
+/* Backend Win32 ------------------------------------------------------------- */
 typedef struct {
     HWND janela;
     BITMAPINFO bitmap;
@@ -391,6 +397,8 @@ static void plataforma_encerrar(Plataforma *p) {
     plataforma_win32_ativa = NULL;
 }
 #endif
+
+/* Clipboard UTF-8 ----------------------------------------------------------- */
 
 static int plataforma_clipboard_copiar(const char *texto) {
 #ifdef _WIN32

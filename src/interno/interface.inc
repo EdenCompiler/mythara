@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Entrada e toolkit imediato                                                  */
-/* ========================================================================== */
+/*
+ * Modulo: interface
+ * Responsabilidade: tema, entrada logica e controles de UI imediata.
+ * Depende de: base e renderizador.
+ */
+
+/* Tema ---------------------------------------------------------------------- */
 
 typedef struct {
     char nome[48];
@@ -55,6 +59,8 @@ typedef struct {
     const char *rotulo_quente;
 } Interface;
 
+/* Estado e identificacao dos controles ------------------------------------- */
+
 typedef struct {
     int foco;
     size_t cursor, ancora, rolagem;
@@ -83,6 +89,8 @@ static int ui_botao(Interface *ui, Retangulo r, const char *rotulo, int selecion
     desenhar_texto(ui->tela, r.x + 7, r.y + (r.altura - 7) / 2, rotulo, tema_ativo.texto, 1);
     return sobre && ui->entrada->mouse_pressionado;
 }
+
+/* Edicao de texto UTF-8 ----------------------------------------------------- */
 
 static size_t utf8_anterior(const char *texto, size_t pos) {
     if (!pos)
@@ -299,6 +307,8 @@ static int ui_campo_multilinha(Interface *ui, Retangulo r, char *texto, size_t c
     }
     return mudou;
 }
+
+/* Controles compostos ------------------------------------------------------- */
 
 static int ui_numero(Interface *ui, Retangulo r, const char *rotulo, int valor, int minimo,
                      int maximo) {

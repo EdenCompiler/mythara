@@ -1,6 +1,11 @@
-/* ========================================================================== */
-/* Configuracao e tipos basicos                                                */
-/* ========================================================================== */
+/*
+ * Modulo: base
+ * Responsabilidade: tipos geometricos, tempo, caminhos e sistema de arquivos.
+ * Depende de: preludio.
+ * Consumido por: todos os demais modulos internos.
+ */
+
+/* Tipos e operacoes primitivas --------------------------------------------- */
 
 #define MYTHARA_LARGURA_INICIAL 1280
 #define MYTHARA_ALTURA_INICIAL 720
@@ -42,6 +47,8 @@ static void copiar_texto(char *destino, size_t capacidade, const char *origem) {
     memmove(destino, origem, n);
     destino[n] = 0;
 }
+
+/* Tempo e executavel -------------------------------------------------------- */
 
 static const char *nome_base(const char *caminho) {
     const char *barra = strrchr(caminho, '/');
@@ -100,6 +107,8 @@ static FILE *abrir_arquivo_utf8(const char *caminho, const char *modo) {
 }
 #define fopen abrir_arquivo_utf8
 #endif
+
+/* Caminhos e escrita atomica ------------------------------------------------ */
 
 static int substituir_arquivo(const char *origem, const char *destino) {
 #ifdef _WIN32
@@ -187,6 +196,8 @@ static int criar_diretorios(const char *caminho) {
         }
     return !copia[0] || mkdir(copia, 0755) == 0 || errno == EEXIST;
 }
+
+/* Enumeracao de diretorios -------------------------------------------------- */
 
 typedef struct {
     char nome[256];

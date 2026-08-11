@@ -62,6 +62,7 @@ implementação de funcionalidades.
 
 Arquivos `.inc` são código C interno, formatado e acompanhado pelo CMake e Make. Eles não devem ser
 compilados isoladamente: dependências seguem a ordem explícita da unidade de composição.
+O guia curto de navegação e convenções fica em [`src/interno/README.md`](../src/interno/README.md).
 
 ## Modelo e propriedade
 

@@ -1,6 +1,11 @@
-/* ========================================================================== */
-/* Persistencia versionada                                                     */
-/* ========================================================================== */
+/*
+ * Modulo: persistencia
+ * Responsabilidade: validacao, projetos v3/v4, snapshots e saves do runtime.
+ * Depende de: modelo e formato_binario.
+ * Regra central: o formato v4 nunca grava o layout de uma struct C.
+ */
+
+/* Compatibilidade legada v3 ------------------------------------------------ */
 
 typedef struct {
     char magia[8];
@@ -212,6 +217,8 @@ static int salvar_projeto_v3_em(const Projeto *p, const char *caminho, char *err
     }
     return 1;
 }
+
+/* Validacao estrutural ------------------------------------------------------ */
 
 static int comparar_identificadores(const void *a, const void *b) {
     Identificador x = *(const Identificador *)a, y = *(const Identificador *)b;
@@ -511,6 +518,8 @@ static int avisos_projeto(const Projeto *p, char *primeiro, size_t capacidade) {
     return avisos;
 }
 
+/* Leitura explicita do legado v3 ------------------------------------------- */
+
 static int carregar_projeto_v3_de(Projeto *p, const char *caminho, char *erro, size_t cap_erro) {
     CabecalhoProjeto h;
     CabecalhoBloco bloco;
@@ -660,6 +669,7 @@ falha:
     return 0;
 }
 
+/* Referencias estaveis do formato v4 --------------------------------------- */
 /* O formato v4 nunca grava estruturas C diretamente. Todos os campos usam
  * inteiros little-endian de tamanho fixo e textos UTF-8 prefixados pelo tamanho. */
 
@@ -740,6 +750,8 @@ static int resolver_referencia_comando(const Projeto *p, ComandoEvento *c, Ident
     c->a = indice;
     return 1;
 }
+
+/* Escrita do payload de projeto v4 ----------------------------------------- */
 
 static void v4_escrever_recurso(EscritorBinario *w, const Recurso *r) {
     escritor_binario_u64(w, r->id);
@@ -987,6 +999,8 @@ static int serializar_projeto_v4(const Projeto *p, EscritorBinario *w) {
         w, id_por_indice(p->mapas, p->quantidade_mapas, sizeof(Mapa), p->mapa_inicial));
     return !w->erro;
 }
+
+/* Leitura e resolucao do payload de projeto v4 ----------------------------- */
 
 static int v4_ler_contagem(LeitorBinario *r, int maximo, int *quantidade) {
     uint32_t valor = leitor_binario_u32(r);
@@ -1373,6 +1387,8 @@ fim:
     return 1;
 }
 
+/* Envelope, despacho de versao e snapshots --------------------------------- */
+
 static int salvar_payload_v4(const uint8_t *dados, size_t tamanho, const char *caminho, char *erro,
                              size_t cap_erro) {
     if (tamanho > UINT32_MAX) {
@@ -1614,6 +1630,8 @@ static uint32_t resumo_projeto(const Projeto *p, size_t *bytes) {
     escritor_binario_liberar(&b);
     return soma;
 }
+
+/* Save portatil vinculado ao projeto --------------------------------------- */
 
 static void v4_escrever_membro(EscritorBinario *w, const Projeto *p, const MembroGrupo *m) {
     escritor_binario_u64(w,

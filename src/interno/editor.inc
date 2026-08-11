@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Desenho e interacao do editor                                               */
-/* ========================================================================== */
+/*
+ * Modulo: editor
+ * Responsabilidade: workspace de mapas, navegacao, pintura e inspetor.
+ * Depende de: estado do aplicativo e toolkit de interface.
+ */
+
+/* Navegacao e paineis principais ------------------------------------------- */
 
 static void desenhar_tile_recurso(Aplicativo *a, Tela *t, Retangulo r, int tile, int colisao) {
     Imagem *img = NULL;
@@ -226,6 +230,8 @@ static void editor_painel_esquerdo(Aplicativo *a, Interface *ui, Retangulo r) {
         refazer_edicao(a);
 }
 
+/* Ferramentas de pintura ---------------------------------------------------- */
+
 static void editar_celula(Aplicativo *a, int x, int y, int camada, int valor) {
     Editor *e = &a->editor;
     Mapa *m = &a->projeto.mapas[e->mapa_atual];
@@ -346,6 +352,8 @@ static void atualizar_autotile(Aplicativo *a, int cx, int cy) {
             editar_celula(a, x, y, camada, base + mascara);
         }
 }
+
+/* Selecao, clipboard e carimbos -------------------------------------------- */
 
 static void copiar_selecao_para_carimbo(Aplicativo *a) {
     Editor *e = &a->editor;
@@ -475,6 +483,8 @@ static void apagar_selecao_editor(Aplicativo *a) {
     e->clipboard_largura = 0;
     mensagem_aplicativo(a, "Selecao apagada.");
 }
+
+/* Canvas e interacao -------------------------------------------------------- */
 
 static void editor_canvas(Aplicativo *a, Interface *ui, Retangulo area) {
     Editor *e = &a->editor;
@@ -676,6 +686,8 @@ static int redimensionar_mapa(Mapa *m, int largura, int altura) {
     }
     return 1;
 }
+
+/* Inspetor ----------------------------------------------------------------- */
 
 static void editor_inspetor(Aplicativo *a, Interface *ui, Retangulo r) {
     Editor *e = &a->editor;

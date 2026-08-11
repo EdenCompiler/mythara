@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Recursos BMP/WAV e exportacao                                               */
-/* ========================================================================== */
+/*
+ * Modulo: recursos e exportacao
+ * Responsabilidade: imagens, audio, importacao segura e pacote distribuivel.
+ * Formatos incorporados: BMP, QOI, TGA e WAV PCM.
+ */
+
+/* Imagens e leitores binarios ---------------------------------------------- */
 
 typedef struct {
     uint32_t *pixels;
@@ -212,6 +216,8 @@ static int carregar_imagem(int tipo, const char *caminho, Imagem *img, char *err
     return 0;
 }
 
+/* Ciclo de vida e desenho de imagens --------------------------------------- */
+
 static void liberar_imagem(Imagem *img) {
     free(img->pixels);
     memset(img, 0, sizeof(*img));
@@ -252,6 +258,8 @@ static void desenhar_imagem(Tela *t, const Imagem *img, Retangulo destino, Retan
 }
 
 #ifndef MYTHARA_SEM_AUDIO
+/* Reproducao WAV ------------------------------------------------------------ */
+
 #ifdef _WIN32
 static int tocar_wav(const char *caminho) {
     return PlaySoundA(caminho, NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT) != 0;
@@ -376,6 +384,8 @@ static int copiar_arquivo(const char *origem, const char *destino) {
         ok = 0;
     return ok;
 }
+
+/* Importacao e exportacao do projeto --------------------------------------- */
 
 static int importar_arquivo_projeto(const Projeto *p, const char *origem, int audio, char *relativo,
                                     size_t capacidade) {

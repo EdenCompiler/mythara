@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Estado do aplicativo e operacoes do editor                                 */
-/* ========================================================================== */
+/*
+ * Modulo: aplicativo
+ * Responsabilidade: estado compartilhado, configuracao e operacoes do projeto.
+ * Depende de: persistencia, recursos e interface.
+ */
+
+/* Estados de alto nivel ----------------------------------------------------- */
 
 typedef enum { MODO_EDITOR, MODO_JOGO, MODO_BATALHA } ModoAplicativo;
 typedef enum {
@@ -49,26 +53,37 @@ typedef struct {
 } EstadoHistorico;
 
 typedef struct {
+    /* Navegacao do mapa. */
     int mapa_atual, camada, tile, zoom;
     int camera_x, camera_y;
     int ferramenta;
     int entidade_selecionada;
+
+    /* Selecoes dos editores auxiliares. */
     int recurso_selecionado;
     int clipe_recurso;
     int evento_selecionado;
     int comando_selecionado;
     int aba_banco, registro_banco, subregistro_banco;
+
+    /* Layout responsivo. */
     int largura_arvore, largura_inspetor, altura_inferior, divisor_ativo;
     int layout_ativo, gaveta_arvore, gaveta_inspetor;
+
+    /* Selecao e ferramentas de area. */
     int selecao_x0, selecao_y0, selecao_x1, selecao_y1, selecao_ativa;
     int cursor_tile_x, cursor_tile_y, canvas_em_foco;
     int arrastando_forma, autotile;
     int largura_carimbo, altura_carimbo, camadas_carimbo;
     uint16_t carimbo[MYTHARA_MAX_CAMADAS][16 * 16];
+
+    /* Clipboard estruturado. */
     int clipboard_largura, clipboard_altura, clipboard_camadas, clipboard_entidades;
     uint16_t clipboard_tiles[MYTHARA_MAX_CAMADAS][64 * 64];
     uint8_t clipboard_colisoes[64 * 64];
     Entidade clipboard_lista_entidades[256];
+
+    /* Filtros e rolagens independentes. */
     char busca_arvore[64];
     char busca_comandos[64];
     char busca_banco[64];
@@ -76,6 +91,8 @@ typedef struct {
     char busca_eventos[64];
     int rolagem_arvore, rolagem_banco, rolagem_eventos, rolagem_recursos, rolagem_comandos_evento;
     int cor_tema_selecionada;
+
+    /* Historico local e snapshots profundos. */
     Edicao historico[MYTHARA_MAX_EDICOES];
     int quantidade_historico, posicao_historico;
     EstadoHistorico *estados_historico;
@@ -87,15 +104,20 @@ typedef struct {
 } Editor;
 
 typedef struct {
+    /* Estado persistente e interpretador de eventos. */
     EstadoJogo estado;
     int evento_ativo, proximo_comando;
     int aguardando_texto, aguardando_escolha;
     char texto[320];
     char escolha_a[80], escolha_b[80];
+
+    /* Batalha e selecao de acoes. */
     int inimigo, vida_inimigo;
     int quantidade_inimigos_batalha;
     int inimigos_batalha[8], vidas_inimigos[8];
     int membro_escolhendo, acoes_grupo[4], defesas_grupo[4];
+
+    /* Telas auxiliares e pilhas de controle. */
     int tela_sobreposta, loja_ativa;
     int pilha_eventos[8], pilha_comandos[8], topo_pilha;
     int pilha_repeticao_pc[8], pilha_repeticao_restante[8], pilha_repeticao_nivel[8],
@@ -108,6 +130,7 @@ typedef struct {
 } Jogo;
 
 typedef struct {
+    /* Dominios principais. */
     Projeto projeto;
     Editor editor;
     Jogo jogo;
@@ -115,6 +138,8 @@ typedef struct {
     TipoModal modal;
     AcaoCaminho acao_caminho;
     AcaoDescarte acao_descarte;
+
+    /* Documento e navegadores de arquivo. */
     char caminho_projeto[MYTHARA_MAX_CAMINHO];
     char caminho_recente[MYTHARA_MAX_CAMINHO];
     char campo_caminho[MYTHARA_MAX_CAMINHO];
@@ -126,6 +151,8 @@ typedef struct {
     char caminho_pendente[MYTHARA_MAX_CAMINHO];
     char erro_validacao[256];
     char mensagem[256];
+
+    /* Recursos carregados e estado da sessao. */
     Imagem imagens[MYTHARA_MAX_RECURSOS];
     int projeto_carregado;
     int foco_interface;
@@ -136,6 +163,8 @@ typedef struct {
     int encerrar_confirmado;
     atomic_int autosave_em_andamento;
 } Aplicativo;
+
+/* Configuracao e temas portateis ------------------------------------------- */
 
 static int caminho_configuracao(char *destino, size_t capacidade) {
     const char *casa = getenv("HOME");
@@ -348,6 +377,8 @@ static int carregar_tema_arquivo(const char *caminho) {
     return ok;
 }
 
+/* Referencias nomeadas na interface ---------------------------------------- */
+
 static const char *nomes_comandos[] = {"Mostrar texto",
                                        "Mostrar escolha",
                                        "Definir flag",
@@ -489,6 +520,8 @@ static int tipo_referencia_comando(int tipo_comando, TipoReferencia *tipo, const
 static void mensagem_aplicativo(Aplicativo *a, const char *texto) {
     copiar_texto(a->mensagem, sizeof(a->mensagem), texto);
 }
+
+/* Historico de edicao ------------------------------------------------------- */
 
 static int valor_celula_mapa(Mapa *m, int camada, int indice) {
     if (camada == MYTHARA_MAX_CAMADAS)
@@ -674,6 +707,8 @@ static void liberar_recursos(Aplicativo *a) {
         liberar_imagem(&a->imagens[i]);
 }
 
+/* Ciclo de vida do documento ------------------------------------------------ */
+
 static int preparar_pasta_projeto(Projeto *p, const char *arquivo) {
     char caminho[MYTHARA_MAX_CAMINHO];
     pasta_do_arquivo(arquivo, p->pasta_base, sizeof(p->pasta_base));
@@ -851,6 +886,8 @@ typedef struct {
     atomic_int *em_andamento;
 } TrabalhoAutosave;
 
+/* Autosave assincrono ------------------------------------------------------- */
+
 #ifdef _WIN32
 static DWORD WINAPI executar_autosave_thread(LPVOID dados) {
     TrabalhoAutosave *t = dados;
@@ -946,6 +983,8 @@ static int recuperar_autosave(Aplicativo *a) {
     mensagem_aplicativo(a, "Sessao recuperada do autosave.");
     return 1;
 }
+
+/* Criacao e consultas usadas pelo editor ----------------------------------- */
 
 static int adicionar_evento(Aplicativo *a, const char *nome) {
     Projeto *p = &a->projeto;
@@ -1096,6 +1135,8 @@ static int registro_referenciado(const Projeto *p, TipoReferencia tipo, int indi
 #undef REFERENCIA_ENCONTRADA
     return 0;
 }
+
+/* Remocao segura e ajuste de indices --------------------------------------- */
 
 static void ajustar_indice_removido(int *referencia, int removido) {
     if (*referencia > removido)

@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Autotestes, linha de comando e programa principal                           */
-/* ========================================================================== */
+/*
+ * Modulo: programa
+ * Responsabilidade: verificacao integrada, CLI e ponto de entrada.
+ * Este e o ultimo modulo da unidade de composicao.
+ */
+
+/* Fixtures e autotestes ----------------------------------------------------- */
 
 static int criar_qoi_teste(const char *caminho) {
     const uint8_t dados[] = {'q',  'o',  'i',  'f',  0,    0, 0, 1, 0, 0, 0, 1, 4, 0,
@@ -401,6 +405,8 @@ static int executar_autotestes(void) {
     return falhas ? 1 : 0;
 }
 
+/* Linha de comando --------------------------------------------------------- */
+
 static void mostrar_ajuda_terminal(void) {
     puts("Mythara - motor e editor visual de JRPG 2D\n"
          "Uso:\n"
@@ -430,6 +436,8 @@ static void mudar_para_pasta_executavel(void) {
         chdir(caminho);
     }
 }
+
+/* Ponto de entrada --------------------------------------------------------- */
 
 int main(int argc, char **argv) {
     srand((unsigned)time(NULL));

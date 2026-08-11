@@ -1,6 +1,11 @@
-/* ========================================================================== */
-/* Janelas modais do editor                                                    */
-/* ========================================================================== */
+/*
+ * Modulo: modais
+ * Responsabilidade: fluxos focados que bloqueiam temporariamente o workspace.
+ * Convencao: cada modal recebe Aplicativo e Interface e altera somente o estado
+ * confirmado pelo usuario.
+ */
+
+/* Estrutura comum e selecao de caminhos ------------------------------------ */
 
 static Retangulo iniciar_modal(Interface *ui, const char *titulo, int largura, int altura) {
     preencher_retangulo(ui->tela, (Retangulo){0, 0, ui->tela->largura, ui->tela->altura},
@@ -146,10 +151,14 @@ static const char *nome_registro_banco(const Projeto *p, int aba, int indice) {
     return p->missoes[indice].nome;
 }
 
+/* Banco de dados ------------------------------------------------------------ */
+
 static void modal_banco(Aplicativo *a, Interface *ui) {
     Retangulo r = iniciar_modal(ui, "BANCO DE DADOS JRPG", 1040, 620);
     Editor *e = &a->editor;
     Projeto *p = &a->projeto;
+
+    /* Abas e origem da lista. */
     const char *abas[] = {"HEROI",    "CLASSES", "HABILIDADES", "ITENS",
                           "INIMIGOS", "ESTADOS", "LOJAS",       "MISSOES"};
     for (int i = 0; i < 8; ++i) {
@@ -207,6 +216,7 @@ static void modal_banco(Aplicativo *a, Interface *ui) {
     if (ui_botao(ui, (Retangulo){r.x + 72, r.y + r.altura - 78, 54, 25}, "DESCER", 0))
         e->rolagem_banco =
             limitar_int(e->rolagem_banco + 13, 0, filtrados > 13 ? filtrados - 13 : 0);
+    /* Paginacao e criacao de registros. */
     if (ui_botao(ui, (Retangulo){r.x + 132, r.y + r.altura - 78, 55, 25}, "+", 0)) {
         if (e->aba_banco == 0 && p->quantidade_herois < 16) {
             int i = p->quantidade_herois++;
@@ -304,6 +314,8 @@ static void modal_banco(Aplicativo *a, Interface *ui) {
     int i = limitar_int(e->registro_banco, 0, total ? total - 1 : 0), x = r.x + 280, x2 = x + 430,
         y2 = r.y + 112;
     y = r.y + 112;
+
+    /* Formulario especifico da aba selecionada. */
     if (e->aba_banco == 0) {
         Heroi *h = &p->herois[i];
         ui_campo(ui, (Retangulo){x, y, 400, 28}, h->nome, sizeof(h->nome));
@@ -517,6 +529,8 @@ static void modal_banco(Aplicativo *a, Interface *ui) {
         a->modal = MODAL_NENHUM;
     }
 }
+
+/* Eventos e comandos visuais ----------------------------------------------- */
 
 static void modal_eventos(Aplicativo *a, Interface *ui) {
     Retangulo r = iniciar_modal(ui, "EDITOR VISUAL DE EVENTOS", 1040, 610);
@@ -781,6 +795,8 @@ static void modal_eventos(Aplicativo *a, Interface *ui) {
         a->modal = MODAL_NENHUM;
     }
 }
+
+/* Recursos e animacoes ----------------------------------------------------- */
 
 static void modal_recursos(Aplicativo *a, Interface *ui) {
     Retangulo r = iniciar_modal(ui, "RECURSOS E ANIMACOES", 1040, 650);
@@ -1047,6 +1063,8 @@ static Cor *cor_tema_por_indice(int indice) {
     return cores[limitar_int(indice, 0, 12)];
 }
 
+/* Tema e preferencias visuais ---------------------------------------------- */
+
 static void modal_tema(Aplicativo *a, Interface *ui) {
     Retangulo r = iniciar_modal(ui, "EDITOR COMPLETO DE TEMA", 900, 590);
     const char *nomes[] = {"FUNDO",   "PAINEL", "PAINEL ELEVADO", "CONTROLE",    "CONTROLE SOBRE",
@@ -1128,6 +1146,8 @@ static void modal_tema(Aplicativo *a, Interface *ui) {
                  0))
         a->modal = MODAL_NENHUM;
 }
+
+/* Recuperacao, migracao e validacao ---------------------------------------- */
 
 static void modal_recuperacao(Aplicativo *a, Interface *ui) {
     Retangulo r = iniciar_modal(ui, "RECUPERACAO DE SESSAO", 620, 230);
@@ -1270,6 +1290,8 @@ static void modal_descartar(Aplicativo *a, Interface *ui) {
     }
 }
 
+/* Boas-vindas e paleta de comandos ---------------------------------------- */
+
 static void modal_boas_vindas(Aplicativo *a, Interface *ui) {
     int largura = limitar_int(ui->tela->largura - 40, 420, 760),
         altura = limitar_int(ui->tela->altura - 40, 360, 500);
@@ -1362,6 +1384,8 @@ static void modal_comandos(Aplicativo *a, Interface *ui) {
             y += 34;
         }
 }
+
+/* Composicao final do workspace ------------------------------------------- */
 
 static void desenhar_editor(Aplicativo *a, Interface *ui) {
     Editor *e = &a->editor;

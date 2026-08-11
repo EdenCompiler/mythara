@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Runtime de jogo, eventos e combate                                          */
-/* ========================================================================== */
+/*
+ * Modulo: runtime
+ * Responsabilidade: executar o projeto sem dependencias do estado do editor.
+ * Abrange: eventos, exploracao, menus, lojas, missoes e combate.
+ */
+
+/* Interpretador de eventos ------------------------------------------------- */
 
 static void iniciar_evento_jogo(Aplicativo *a, int indice) {
     if (indice < 0 || indice >= a->projeto.quantidade_eventos || !a->projeto.eventos[indice].ativo)
@@ -195,6 +199,8 @@ static int posicao_bloqueada(Aplicativo *a, int x, int y) {
     return 0;
 }
 
+/* Exploracao e entrada ------------------------------------------------------ */
+
 static void atualizar_jogo(Aplicativo *a, Entrada *in) {
     Jogo *j = &a->jogo;
     char save[32];
@@ -315,6 +321,8 @@ static void atualizar_jogo(Aplicativo *a, Entrada *in) {
         }
     }
 }
+
+/* Apresentacao do jogo e menus --------------------------------------------- */
 
 static void desenhar_mapa_jogo(Aplicativo *a, Tela *t, Retangulo area) {
     EstadoJogo *j = &a->jogo.estado;
@@ -544,6 +552,8 @@ static void desenhar_jogo(Aplicativo *a, Interface *ui) {
     else if (j->tela_sobreposta == 3)
         desenhar_loja_jogo(a, ui);
 }
+
+/* Regras de combate -------------------------------------------------------- */
 
 static int primeiro_inimigo_vivo(const Jogo *j) {
     for (int i = 0; i < j->quantidade_inimigos_batalha; ++i)

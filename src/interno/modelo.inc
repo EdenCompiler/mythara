@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Modelo persistente                                                          */
-/* ========================================================================== */
+/*
+ * Modulo: modelo
+ * Responsabilidade: memoria, IDs e ciclo de vida das estruturas persistentes.
+ * Depende de: base e declaracoes de modelo.h.
+ */
+
+/* Memoria e propriedade ----------------------------------------------------- */
 
 static int caminho_do_recurso(const Projeto *p, const char *caminho, char *destino,
                               size_t capacidade) {
@@ -85,6 +89,8 @@ static int reservar_comandos(Evento *e, int necessario) {
                             sizeof(ComandoEvento), MYTHARA_MAX_COMANDOS);
 }
 
+/* Identificadores e referencias persistentes -------------------------------- */
+
 static Identificador novo_identificador(Projeto *p) {
     if (p->proximo_id < 1)
         p->proximo_id = 1;
@@ -166,6 +172,8 @@ static void atribuir_ids_ausentes(Projeto *p) {
         if (!p->recursos[i].id)
             p->recursos[i].id = novo_identificador(p);
 }
+
+/* Projeto inicial jogavel --------------------------------------------------- */
 
 static void iniciar_projeto(Projeto *p) {
     Mapa *m;

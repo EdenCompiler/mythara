@@ -1,6 +1,10 @@
-/* ========================================================================== */
-/* Renderizador por software e fonte bitmap                                   */
-/* ========================================================================== */
+/*
+ * Modulo: renderizador
+ * Responsabilidade: framebuffer ARGB, primitivas 2D, fonte bitmap e tiles.
+ * Depende de: tipos geometricos de base e idioma ativo.
+ */
+
+/* Framebuffer e primitivas -------------------------------------------------- */
 
 static const Cor paleta_tiles[16] = {0xff151923u, 0xff4b9b4bu, 0xff65ad58u, 0xffc59b55u,
                                      0xff5a4333u, 0xff4078a8u, 0xff79b6d2u, 0xffb0b6bfu,
@@ -55,6 +59,7 @@ static void copiar_tela_escalada(const Tela *origem, Tela *destino) {
     }
 }
 
+/* Fonte bitmap -------------------------------------------------------------- */
 /* Cada linha usa cinco bits. Letras minusculas compartilham os glifos maiores. */
 static const uint8_t fonte_digitos[10][7] = {
     {14, 17, 19, 21, 25, 17, 14}, {4, 12, 4, 4, 4, 4, 14},  {14, 17, 1, 2, 4, 8, 31},
@@ -257,6 +262,8 @@ static void desenhar_texto(Tela *t, int x, int y, const char *texto, Cor cor, in
         x += 6 * escala;
     }
 }
+
+/* Visualizacao de tiles ----------------------------------------------------- */
 
 static void desenhar_grade_tile(Tela *t, Retangulo r, int tile, int colisao) {
     Cor base = paleta_tiles[tile & 15];

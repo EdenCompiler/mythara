@@ -1,25 +1,10 @@
 /*
- * Mythara - motor e editor visual de JRPG 2D em C11.
+ * Modulo: preludio
+ * Responsabilidade: selecionar APIs nativas e reunir os cabecalhos usados pela
+ * unidade de composicao.
  *
- * Compilar no Linux (com audio):
- *   cc -std=c11 -O2 -Wall -Wextra -Wpedantic src/mythara.c src/formato_binario.c src/idioma.c
- *      -o mythara -lX11 -lasound -lm -pthread
- * Compilar (sem audio):
- *   cc -std=c11 -O2 -Wall -Wextra -Wpedantic -DMYTHARA_SEM_AUDIO src/mythara.c
- *      src/formato_binario.c src/idioma.c -o mythara -lX11 -lm
- * Compilar no Windows com MinGW (audio nativo WinMM):
- *   gcc -std=c11 -O2 src/mythara.c src/formato_binario.c src/idioma.c -o mythara.exe
- *      -lgdi32 -luser32 -lshell32 -lwinmm -lm
- *
- * Uso:
- *   ./mythara [projeto.myr]
- *   ./mythara --jogar projeto.myr
- *   ./mythara --novo projeto.myr
- *   ./mythara --autoteste
- *   ./mythara --ajuda
- *
- * O codigo e organizado em modulos internos, marcados por cabecalhos. Nomes de
- * APIs externas mantem a grafia original; todo o restante esta em portugues.
+ * Este arquivo nao declara regras de negocio. Instrucoes de compilacao ficam em
+ * docs/COMPILACAO.md.
  */
 
 #ifndef _WIN32
