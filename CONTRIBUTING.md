@@ -1,7 +1,7 @@
 # Contribuindo com a Mythara
 
 Obrigado por ajudar a desenvolver a Mythara. O objetivo central é manter um motor de JRPG legível,
-portável e concentrado em um único arquivo C.
+portátil, pequeno e organizado em módulos internos claros.
 
 ## Preparação
 
@@ -12,7 +12,10 @@ portável e concentrado em um único arquivo C.
 
 ## Regras do código
 
-- Todo o código do motor deve permanecer em `src/mythara.c`.
+- Coloque cada funcionalidade no módulo correspondente em `src/interno/`; `src/mythara.c` deve
+  permanecer apenas como unidade de composição.
+- Módulos `.inc` não são compilados isoladamente e devem respeitar a ordem documentada em
+  `docs/ARQUITETURA.md`.
 - Nomes internos e comentários próprios do projeto devem permanecer em português.
 - APIs externas conservam os nomes definidos por suas bibliotecas.
 - Não adicione uma dependência sem justificar portabilidade, tamanho e manutenção.
@@ -32,7 +35,8 @@ Para alterações de plataforma, valide também:
 ```bash
 make AUDIO=0 RELEASE=1 test
 x86_64-w64-mingw32-gcc -std=c11 -O2 -Wall -Wextra -Wpedantic \
-    src/mythara.c -o /tmp/mythara.exe -lgdi32 -luser32 -lshell32 -lwinmm -lm
+    src/mythara.c src/formato_binario.c src/idioma.c \
+    -o /tmp/mythara.exe -lgdi32 -luser32 -lshell32 -lwinmm -lm
 ```
 
 ## Commits e propostas

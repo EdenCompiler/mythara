@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verificar clang-format
-        run: clang-format --dry-run --Werror src/mythara.c
+        run: clang-format --dry-run --Werror src/*.c src/*.h src/interno/*.inc
 
   linux:
     name: Linux — áudio ${{ matrix.audio }}
@@ -50,7 +50,8 @@ jobs:
         run: >-
           clang -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror
           -DMYTHARA_SEM_AUDIO -fsanitize=address,undefined
-          src/mythara.c -o mythara-sanitizado -lX11 -lm -pthread
+          src/mythara.c src/formato_binario.c src/idioma.c
+          -o mythara-sanitizado -lX11 -lm -pthread
       - name: Testar
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
@@ -58,20 +59,22 @@ jobs:
         run: ./mythara-sanitizado --autoteste
 
   windows:
-    name: Windows — MinGW-w64
-    runs-on: ubuntu-latest
+    name: Windows nativo — MSVC
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Instalar compilador cruzado
-        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
-      - name: Compilar
+      - name: Configurar
         run: >-
-          x86_64-w64-mingw32-gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror
-          src/mythara.c -o mythara.exe
-          -lgdi32 -luser32 -lshell32 -lwinmm -lm
+          cmake -S . -B build/ci
+          -DMYTHARA_AUDIO=ON
+          -DMYTHARA_AVISOS_COMO_ERROS=ON
+      - name: Compilar
+        run: cmake --build build/ci --config Release --parallel
+      - name: Testar
+        run: ctest --test-dir build/ci -C Release --output-on-failure
       - name: Publicar binário de verificação
         uses: actions/upload-artifact@v4
         with:
           name: mythara-windows
-          path: mythara.exe
+          path: build/ci/Release/mythara.exe
           if-no-files-found: error

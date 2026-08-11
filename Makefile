@@ -3,7 +3,9 @@ BUILD_DIR ?= build/make
 AUDIO ?= 1
 RELEASE ?= 0
 
-FONTE := src/mythara.c
+FONTES := src/mythara.c src/formato_binario.c src/idioma.c
+CABECALHOS := src/modelo.h src/formato_binario.h src/idioma.h
+MODULOS_INTERNOS := $(wildcard src/interno/*.inc)
 EXECUTAVEL := $(BUILD_DIR)/mythara
 CPPFLAGS :=
 CFLAGS := -std=c11 -Wall -Wextra -Wpedantic
@@ -36,9 +38,9 @@ endif
 
 all: $(EXECUTAVEL)
 
-$(EXECUTAVEL): $(FONTE) Makefile
+$(EXECUTAVEL): $(FONTES) $(CABECALHOS) $(MODULOS_INTERNOS) Makefile
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(FONTE) -o $(EXECUTAVEL) $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(FONTES) -o $(EXECUTAVEL) $(LDLIBS)
 
 test: $(EXECUTAVEL)
 	$(EXECUTAVEL) --autoteste

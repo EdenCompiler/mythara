@@ -5,11 +5,39 @@ versionamento semântico para as versões do motor.
 
 ## [Não publicado]
 
+### Alterado
+
+- O monólito restante foi separado em módulos internos de base, modelo, renderização, interface,
+  plataforma, persistência, recursos, aplicativo, editor, modais, runtime e programa.
+
 ### Planejado
 
-- Escolha e publicação de uma licença.
 - Mais cobertura automatizada para interação visual.
 - Migração explícita entre futuras versões do formato.
+
+## [4.0.0] - 2026-08-11
+
+### Adicionado
+
+- Formatos portáteis v4 para projetos, saves, temas e configurações, com little-endian e CRC32.
+- Assistente que migra projetos v3 para uma cópia v4 sem alterar a origem.
+- Validação estrutural antes de salvar, executar playtest e exportar.
+- Busca e rolagem nas listas principais do editor e referências exibidas por nome.
+- Proteção contra descarte acidental ao abrir, criar ou fechar projetos.
+- Interface em português ou inglês, com idiomas independentes para editor e jogo.
+- Módulos internos para modelo, codec binário e localização.
+- Testes de corrupção, compatibilidade v3, chunks, saves vinculados, ordem de bytes e framebuffer.
+- Licença MIT.
+
+### Alterado
+
+- Exclusões do banco de dados agora recusam registros ainda referenciados.
+- Exportação rejeita caminhos de recurso absolutos ou que escapem da pasta do projeto.
+- A integração contínua testa Linux e Windows nativo e cobre todos os módulos.
+
+### Removido
+
+- Escrita de projetos, saves, temas e configurações no formato v3.
 
 ## [3.0.0] - 2026-08-09
 

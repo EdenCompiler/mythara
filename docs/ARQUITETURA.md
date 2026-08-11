@@ -1,103 +1,108 @@
-# Arquitetura da Mythara
+# Arquitetura da Mythara 4
 
-## Princípio central
+## Direção
 
-A Mythara mantém todo o motor e editor em `src/mythara.c`. Isso reduz o número de dependências e
-facilita copiar, auditar e compilar o motor. A modularidade é lógica: cada subsistema ocupa uma seção
-claramente marcada no arquivo.
-
-## Subsistemas
+A Mythara continua sendo um único executável C11, sem framework de UI, renderização ou
+serialização. Todo subsistema possui um arquivo próprio. Os módulos fortemente acoplados são
+compostos por `src/mythara.c` em uma unidade C; codec binário e localização são unidades de
+compilação independentes. Assim, detalhes internos continuam com ligação privada e não viram uma
+API pública artificial.
 
 ```text
-Plataforma X11/Win32
-        │
-        ▼
-Entrada ─────► Toolkit imediato ─────► Editor visual
-        │                                  │
-        │                                  ▼
-        └────────────────────────────► Modelo do projeto
-                                           │
-                  ┌────────────────────────┼─────────────────────┐
-                  ▼                        ▼                     ▼
-             Persistência              Runtime              Exportação
-                  │                        │                     │
-                  ▼                        ▼                     ▼
-           .myr/.mys/.myt          Eventos e combate      Jogo distribuível
+X11 / Win32 ──► entrada e framebuffer ──► UI imediata ──► editor
+                                                        │
+                         modelo.h ◄─────────────────────┤
+                            │                           │
+             ┌──────────────┼───────────────┐           │
+             ▼              ▼               ▼           ▼
+       persistência      runtime        validador   exportação
+             │
+       formato_binario.c
 ```
 
-### Configuração e tipos básicos
+## Módulos
 
-Define limites, cores, identificadores, caminhos e utilitários portáveis. IDs persistentes usam
-`uint64_t` e são gerados pelo contador `Projeto.proximo_id`.
+### `src/modelo.h`
 
-### Modelo persistente
+Declara limites, identificadores estáveis e estruturas persistentes: mapas, camadas, entidades,
+eventos, comandos, recursos e bancos de RPG. Também contém o estado do jogo necessário ao formato
+de save. Ele não expõe uma API pública.
 
-Contém mapas, camadas, entidades, eventos, comandos, heróis, classes, habilidades, itens, inimigos,
-estados, lojas, missões e recursos. Estruturas com quantidade variável usam capacidade e ponteiro
-dinâmico; estruturas pequenas e limitadas permanecem embutidas.
+### `src/formato_binario.c`
 
-### Renderizador e fonte
+Fornece leitores e escritores limitados para inteiros little-endian, bytes, textos UTF-8 e CRC32.
+Uma leitura truncada ou acima dos limites marca o fluxo como inválido; os chamadores nunca usam o
+layout de uma `struct` C como layout de disco no formato v4.
 
-Renderização totalmente por software em um framebuffer ARGB de 32 bits. A plataforma apresenta o
-buffer por XImage no Linux ou `StretchDIBits` no Windows. A fonte bitmap está incorporada no fonte.
+### `src/idioma.c`
 
-### Toolkit imediato
+Mantém o idioma ativo e o catálogo interno português/inglês. Português é o padrão. O idioma do
+editor fica na configuração local e o idioma do jogo faz parte do projeto.
 
-Botões, campos, números, checkboxes, painéis e modais são reconstruídos a cada quadro. O estado
-persistente mínimo inclui foco, cursor, seleção e rolagem textual.
+### Unidade de composição
 
-### Plataforma
+`src/mythara.c` contém somente os includes dos módulos, em ordem de dependência. Não contém
+implementação de funcionalidades.
 
-- Linux: X11, pthread e ALSA opcional.
-- Windows: Win32, GDI, threads do sistema e WinMM opcional.
+| Módulo interno | Responsabilidade |
+|---|---|
+| `preludio.inc` | includes portáveis, opções de plataforma e dependências internas |
+| `base.inc` | tipos fundamentais, caminhos, arquivos e utilitários |
+| `modelo.inc` | alocação, IDs, inicialização e liberação do projeto |
+| `renderizador.inc` | framebuffer por software e fonte bitmap |
+| `interface.inc` | toolkit imediato, campos UTF-8 e controles |
+| `plataforma.inc` | janela, entrada, clipboard, tempo e apresentação X11/Win32 |
+| `persistencia.inc` | validação e formatos de projeto, save, tema e configuração |
+| `recursos_exportacao.inc` | BMP, QOI, TGA, WAV, importação e exportação |
+| `aplicativo.inc` | estado do aplicativo, histórico e operações seguras |
+| `editor.inc` | barras, árvore, mapa, inspetor e painéis |
+| `modais.inc` | banco, eventos, recursos, migração e ciclo do documento |
+| `runtime.inc` | exploração, eventos, grupo, lojas, missões e combate |
+| `programa.inc` | autotestes, linha de comando e ponto de entrada |
 
-A camada recebe teclado, mouse, redimensionamento e texto UTF-8, além de apresentar o framebuffer.
+Arquivos `.inc` são código C interno, formatado e acompanhado pelo CMake e Make. Eles não devem ser
+compilados isoladamente: dependências seguem a ordem explícita da unidade de composição.
 
-### Persistência
-
-Projetos são serializados em memória, recebem checksum FNV-1a e são escritos primeiro em um arquivo
-temporário. O rename final reduz o risco de deixar um projeto parcialmente salvo. Consulte
-`FORMATOS.md` para as restrições de compatibilidade.
-
-### Recursos e exportação
-
-Imagens BMP, QOI e TGA são decodificadas internamente. WAV PCM é reproduzido pela API do sistema.
-Na importação, recursos são copiados para o projeto e armazenados por caminho relativo.
-
-### Editor
-
-O estado do editor inclui workspace atual, painéis, seleção, ferramenta, clipboard estruturado e
-histórico. O histórico global armazena snapshots profundos limitados por quantidade e memória.
-
-### Runtime
-
-Executa movimentação, colisão, eventos, decisões, flags, variáveis, inventário, grupo, missões,
-lojas e combate por rodadas. O mesmo executável entra no runtime por `--jogar` ou pelo nome `jogo`.
-
-## Fluxo de um quadro
-
-1. A plataforma limpa os eventos transitórios e coleta a entrada.
-2. O editor converte a entrada para a escala lógica configurada.
-3. A UI e o conteúdo são desenhados no framebuffer lógico.
-4. Alterações no projeto são detectadas para o histórico global.
-5. O autosave pode serializar um snapshot e delegar a escrita a uma thread.
-6. O framebuffer é escalado e apresentado pela janela nativa.
-
-## Memória e propriedade
+## Modelo e propriedade
 
 - `Projeto` é dono de mapas, eventos, itens, inimigos e recursos dinâmicos.
 - `Mapa` é dono de tiles, colisões e entidades.
-- `Evento` é dono de sua lista de comandos.
-- `Aplicativo` é dono do projeto, imagens carregadas, editor e runtime.
-- Snapshots de histórico são clones profundos e precisam ser liberados individualmente.
+- `Evento` é dono de seus comandos.
+- `Aplicativo` é dono do projeto, imagens, editor e runtime.
+- O histórico usa clones profundos limitados por quantidade e memória.
 
-Ao adicionar um ponteiro persistente, atualize em conjunto inicialização, clone, serialização,
-desserialização e liberação.
+Ao adicionar um campo persistente, atualize inicialização, clone, validação, serialização v4,
+desserialização v4, migração v3 quando aplicável e liberação.
+
+## Persistência e referências
+
+Cada objeto persistente recebe um `Identificador` de 64 bits. A memória pode usar índices para
+acesso rápido, mas arquivos v4 gravam IDs nas referências. O carregador reconstrói e valida os
+índices somente depois de ler todos os objetos.
+
+Projetos são gravados em chunks com versão, flags, comprimento de 64 bits e CRC32. A escrita usa um
+arquivo temporário sincronizado antes do rename. Chunks opcionais desconhecidos são ignorados;
+chunks obrigatórios desconhecidos impedem a abertura.
+
+## Validação
+
+Salvar, iniciar playtest e exportar passam pelo mesmo validador estrutural. Ele verifica limites,
+UTF-8, IDs únicos, dimensões e memória de mapas, caminhos relativos seguros, referências e
+aninhamento de comandos de controle. A UI leva o criador para a área relacionada ao primeiro erro.
+
+## Fluxo de um quadro
+
+1. A plataforma coleta entrada, texto UTF-8, redimensionamento e pedido de fechamento.
+2. O editor transforma coordenadas para a escala lógica.
+3. UI e conteúdo são desenhados no framebuffer ARGB.
+4. Alterações alimentam o histórico e o estado de documento modificado.
+5. O autosave pode serializar um snapshot v4 e delegar a escrita a uma thread.
+6. O framebuffer é escalado e apresentado pela janela nativa.
 
 ## Restrições deliberadas
 
-- Um único arquivo-fonte para o motor.
-- Nenhum framework de UI ou renderização.
-- Formato v3 estrito, sem conversão automática de versões anteriores.
-- Limites explícitos para evitar crescimento de memória sem controle.
+- Um único executável e nenhuma API pública ou sistema de plugins.
+- Nenhuma dependência incorporada; apenas APIs nativas e bibliotecas de sistema.
+- Limites explícitos para arquivos e alocações.
 - Exportação nativa, sem runtime web ou móvel.
+- Projetos v3 só entram pelo fluxo explícito de migração para uma cópia v4.

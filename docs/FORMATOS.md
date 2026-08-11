@@ -1,90 +1,85 @@
-# Formatos da Mythara
+# Formatos da Mythara 4
 
-Este documento descreve o formato v3 atual. Ele serve como referência de manutenção, não como uma
-especificação estável para implementações externas.
+Esta é a referência de manutenção dos formatos v4. Todos os inteiros são gravados em ordem
+little-endian e com largura explícita. Textos são UTF-8 prefixados por tamanho; nenhuma estrutura C
+é copiada diretamente para o arquivo.
 
 ## Projeto `.myr`
 
-O arquivo começa com:
+O cabeçalho possui:
 
 | Campo | Tipo | Valor |
 |---|---|---|
-| `magia` | 8 bytes | `MYTHRV3\0` |
-| `versao` | `uint32_t` | `3` |
-| `quantidade_blocos` | `uint32_t` | `1` |
+| assinatura | 8 bytes | `MYTHRV4\0` |
+| versão | `u32` | `4` |
+| quantidade de chunks | `u32` | entre 1 e 64 |
 
-O bloco principal contém:
+Cada chunk possui:
 
-| Campo | Descrição |
-|---|---|
-| `id` | Quatro bytes: `DADO` |
-| `tamanho` | Tamanho do conteúdo em bytes |
-| `soma` | FNV-1a de 32 bits sobre o conteúdo |
-| `dados` | Projeto serializado |
+| Campo | Tipo | Descrição |
+|---|---|---|
+| identificador | 4 bytes | por exemplo `DADO` |
+| flags | `u32` | bit 0 indica chunk obrigatório |
+| versão do chunk | `u32` | versão própria do conteúdo |
+| tamanho | `u64` | bytes do payload |
+| CRC | `u32` | CRC32 do payload |
+| payload | bytes | conteúdo do chunk |
 
-O conteúdo de `DADO` segue esta ordem:
+`DADO` versão 1 é único e obrigatório. Ele contém metadados, bancos de dados, eventos, recursos,
+mapas, tiles, colisões e entidades em uma ordem canônica definida pelo serializador. Referências são
+IDs persistentes de 64 bits, não posições de arrays. Um chunk opcional desconhecido pode ser
+ignorado; um chunk obrigatório desconhecido é rejeitado.
 
-1. Dados fixos do projeto e bancos de tamanho limitado.
-2. Quantidades de mapas, eventos, itens, inimigos e recursos.
-3. Arrays de itens, inimigos e recursos.
-4. Cada mapa, suas camadas, tiles, colisões e entidades.
-5. Cada evento e seus comandos.
-
-IDs persistentes são salvos junto aos objetos. Referências de entidades para eventos são resolvidas
-por ID após o carregamento.
-
-### Escrita atômica
-
-O projeto é serializado por completo, escrito em `<arquivo>.tmp`, sincronizado e renomeado para o
-destino. Uma falha antes do rename preserva o último arquivo completo.
-
-### Limitações de portabilidade
-
-O v3 ainda serializa algumas estruturas C diretamente. Portanto, pressupõe:
-
-- inteiros com os tamanhos usados pelos compiladores suportados;
-- mesma ordem de bytes;
-- layout de estruturas compatível;
-- ausência de corrupção ou manipulação externa.
-
-Uma futura versão verdadeiramente interoperável deve definir campos byte a byte, ordem little-endian
-e tamanhos independentes do compilador.
+O carregador limita o arquivo a 512 MiB, valida comprimentos antes de avançar, confere CRC, UTF-8,
+quantidades, dimensões, IDs e referências. Dados excedentes e estruturas incompletas são rejeitados.
 
 ## Save `.mys`
 
-O estado do runtime usa:
+| Campo | Tipo | Descrição |
+|---|---|---|
+| assinatura | 8 bytes | `MYTSAV4\0` |
+| versão | `u32` | `4` |
+| ID do projeto | `u64` | impede usar o save no projeto errado |
+| tamanho | `u64` | tamanho do payload |
+| CRC | `u32` | CRC32 do payload |
+| payload | bytes | estado do runtime |
 
-| Campo | Conteúdo |
+Mapa, itens, equipamentos, missões, heróis e estados são identificados por IDs persistentes. A
+Mythara 4 não converte saves v3.
+
+## Tema `.myt` e configuração `.myc`
+
+Assinaturas: `MYTTEM4\0` e `MYTCFG4\0`. Ambos usam o envelope:
+
+| Campo | Tipo |
 |---|---|
-| `magia` | `MYTSAVE\0` |
-| `soma` | FNV-1a do estado |
-| `estado` | Estrutura `EstadoJogo` |
+| assinatura | 8 bytes |
+| versão | `u32` |
+| tamanho do payload | `u64` |
+| CRC32 | `u32` |
+| payload | bytes |
 
-Saves dependem da organização do banco de dados do projeto que os criou.
+O tema guarda as cores e métricas limitadas da interface. A configuração guarda o tema, layout,
+workspace, preferências, idioma do editor e projeto recente. Uma configuração antiga ou inválida é
+ignorada com retorno seguro aos padrões.
 
-## Tema `.myt`
-
-O tema usa a assinatura `MYTTEMA`, checksum FNV-1a e a estrutura `TemaInterface`. A escala é
-normalizada para o intervalo de 100% a 200% ao carregar.
-
-## Configuração `.myc`
-
-A configuração local usa a assinatura `MYTCONF`, versão 3, tema, dimensões dos painéis, workspace,
-preferências da tela inicial e caminho do projeto recente.
-
-Local padrão:
+Local padrão da configuração:
 
 - Linux: `$XDG_CONFIG_HOME/mythara/config.myc` ou `~/.config/mythara/config.myc`.
 - Windows: `%APPDATA%/mythara/config.myc`.
 
-## Autosave
+## Escrita atômica e autosave
 
-Snapshots usam o mesmo formato `.myr` e ficam em `.mythara/backups`. Existem até dez arquivos,
-numerados de `autosave_0.myr` a `autosave_9.myr`, sendo zero o mais recente.
+Arquivos v4 são escritos em `<destino>.tmp`, recebem `fflush`/sincronização e só então substituem o
+destino por rename. Autosaves usam exatamente o formato `.myr` v4 em `.mythara/backups`, com até dez
+snapshots rotativos de `autosave_0.myr` a `autosave_9.myr`.
 
-## Política de versão
+## Compatibilidade
 
-- A Mythara 3 abre somente projetos v3 com assinatura Mythara.
-- Mudança incompatível exige incrementar `MYTHARA_VERSAO` e alterar a assinatura.
-- Um conversor deve ser uma ferramenta explícita; o carregador principal não deve adivinhar layout.
-- Novos campos opcionais exigem um mecanismo versionado antes de serem anexados ao formato atual.
+- O editor reconhece projetos v3 apenas para o assistente de migração.
+- A migração sempre cria outro arquivo v4 e preserva a origem.
+- O runtime e a recuperação de autosave exigem projetos v4.
+- O leitor v4 não tenta adivinhar versões ou layouts.
+- Campos incompatíveis exigem nova versão do chunk ou do documento.
+
+Consulte [MIGRACAO_V4.md](MIGRACAO_V4.md) para o fluxo voltado a usuários.

@@ -19,7 +19,7 @@ trap 'rm -rf "$TEMPORARIO"' EXIT HUP INT TERM
 
 mkdir -p dist "$TEMPORARIO/$NOME"
 cp "$BINARIO" "$TEMPORARIO/$NOME/mythara"
-cp README.md CHANGELOG.md "$TEMPORARIO/$NOME/"
+cp README.md CHANGELOG.md LICENSE "$TEMPORARIO/$NOME/"
 chmod +x "$TEMPORARIO/$NOME/mythara"
 tar -C "$TEMPORARIO" -czf "dist/$NOME.tar.gz" "$NOME"
 

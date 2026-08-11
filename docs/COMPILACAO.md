@@ -77,7 +77,7 @@ Em Debian ou Ubuntu:
 ```bash
 sudo apt install gcc-mingw-w64-x86-64
 x86_64-w64-mingw32-gcc -std=c11 -O2 -Wall -Wextra -Wpedantic \
-    src/mythara.c -o build/mythara.exe \
+    src/mythara.c src/formato_binario.c src/idioma.c -o build/mythara.exe \
     -lgdi32 -luser32 -lshell32 -lwinmm -lm
 ```
 
@@ -86,7 +86,8 @@ x86_64-w64-mingw32-gcc -std=c11 -O2 -Wall -Wextra -Wpedantic \
 ```bash
 clang -std=c11 -O1 -g -Wall -Wextra -Wpedantic \
     -DMYTHARA_SEM_AUDIO -fsanitize=address,undefined \
-    src/mythara.c -o build/mythara-sanitizado -lX11 -lm -pthread
+    src/mythara.c src/formato_binario.c src/idioma.c \
+    -o build/mythara-sanitizado -lX11 -lm -pthread
 
 ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
 UBSAN_OPTIONS=halt_on_error=1 \

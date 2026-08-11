@@ -1,0 +1,150 @@
+#include "idioma.h"
+
+#include <stddef.h>
+#include <string.h>
+
+typedef struct {
+    const char *portugues;
+    const char *ingles;
+} Traducao;
+
+static IdiomaMythara idioma_ativo = IDIOMA_PORTUGUES;
+
+static const Traducao traducoes[] = {
+    {"ARQUIVO", "FILE"},
+    {"EDITAR", "EDIT"},
+    {"PROJETO", "PROJECT"},
+    {"NOVO", "NEW"},
+    {"SALVAR COMO", "SAVE AS"},
+    {"BANCO", "DATABASE"},
+    {"EVENTOS", "EVENTS"},
+    {"RECURSOS", "ASSETS"},
+    {"TEMA", "THEME"},
+    {"JOGAR F5", "PLAY F5"},
+    {"AJUDA", "HELP"},
+    {"SALVAR", "SAVE"},
+    {"ABRIR", "OPEN"},
+    {"CANCELAR", "CANCEL"},
+    {"CONFIRMAR", "CONFIRM"},
+    {"CONCLUIR", "DONE"},
+    {"DESCARTAR", "DISCARD"},
+    {"SALVAR E CONTINUAR", "SAVE AND CONTINUE"},
+    {"SALVAR E CRIAR", "SAVE AND CREATE"},
+    {"IGNORAR", "IGNORE"},
+    {"RECUPERAR", "RECOVER"},
+    {"FECHAR", "CLOSE"},
+    {"CRIAR", "CREATE"},
+    {"RESTAURAR", "RESTORE"},
+    {"IMPORTAR", "IMPORT"},
+    {"EXPORTAR", "EXPORT"},
+    {"INSPETOR", "INSPECTOR"},
+    {"ARVORE", "TREE"},
+    {"CAMADAS", "LAYERS"},
+    {"ENTIDADE", "ENTITY"},
+    {"EXCLUIR ENTIDADE", "DELETE ENTITY"},
+    {"EDITAR EVENTO", "EDIT EVENT"},
+    {"USAR COMO MAPA INICIAL", "USE AS START MAP"},
+    {"BATALHA LATERAL", "SIDE-VIEW BATTLE"},
+    {"NOVO PROJETO", "NEW PROJECT"},
+    {"ABRIR PROJETO", "OPEN PROJECT"},
+    {"SALVAR COMO", "SAVE AS"},
+    {"EXPORTAR JOGO", "EXPORT GAME"},
+    {"NOVA PASTA", "NEW FOLDER"},
+    {"SUBIR", "UP"},
+    {"BANCO DE DADOS JRPG", "JRPG DATABASE"},
+    {"HEROI", "HERO"},
+    {"CLASSES", "CLASSES"},
+    {"HABILIDADES", "SKILLS"},
+    {"ITENS", "ITEMS"},
+    {"INIMIGOS", "ENEMIES"},
+    {"ESTADOS", "STATES"},
+    {"LOJAS", "SHOPS"},
+    {"MISSOES", "QUESTS"},
+    {"EDITOR VISUAL DE EVENTOS", "VISUAL EVENT EDITOR"},
+    {"RECURSOS DO PROJETO", "PROJECT ASSETS"},
+    {"RECURSOS E ANIMACOES", "ASSETS AND ANIMATIONS"},
+    {"VALIDADOR DO PROJETO", "PROJECT VALIDATOR"},
+    {"EDITOR COMPLETO DE TEMA", "THEME EDITOR"},
+    {"RECUPERACAO DE SESSAO", "SESSION RECOVERY"},
+    {"MIGRAR PROJETO V3 PARA V4", "MIGRATE V3 PROJECT TO V4"},
+    {"CRIAR COPIA", "CREATE COPY"},
+    {"BEM-VINDO A MYTHARA 4", "WELCOME TO MYTHARA 4"},
+    {"CONTINUAR NO EXEMPLO", "CONTINUE WITH SAMPLE"},
+    {"CRIAR PROJETO LIMPO", "CREATE BLANK PROJECT"},
+    {"ABRIR PROJETO V4", "OPEN V4 PROJECT"},
+    {"MOSTRAR DICAS CONTEXTUAIS", "SHOW CONTEXTUAL TIPS"},
+    {"PALETA DE COMANDOS  CTRL+P", "COMMAND PALETTE  CTRL+P"},
+    {"Salvar projeto", "Save project"},
+    {"Abrir editor de eventos", "Open event editor"},
+    {"Abrir banco de dados", "Open database"},
+    {"Abrir recursos", "Open assets"},
+    {"Editar tema", "Edit theme"},
+    {"Desfazer", "Undo"},
+    {"Refazer", "Redo"},
+    {"Iniciar playtest", "Start playtest"},
+    {"ATACAR", "ATTACK"},
+    {"HABILIDADE", "SKILL"},
+    {"ITEM", "ITEM"},
+    {"DEFENDER", "DEFEND"},
+    {"FUGIR", "ESCAPE"},
+    {"BATALHA - VISAO LATERAL", "BATTLE - SIDE VIEW"},
+    {"BATALHA - VISAO FRONTAL", "BATTLE - FRONT VIEW"},
+    {"GRUPO E EQUIPAMENTO", "PARTY AND EQUIPMENT"},
+    {"DIARIO DE MISSOES", "QUEST LOG"},
+    {"INVENTARIO", "INVENTORY"},
+    {"SALVAR JOGO", "SAVE GAME"},
+    {"CARREGAR JOGO", "LOAD GAME"},
+    {"SAIR DA LOJA", "LEAVE SHOP"},
+    {"ESPACO PARA CONTINUAR", "SPACE TO CONTINUE"},
+    {"ESCOLHA UMA OPCAO", "CHOOSE AN OPTION"},
+    {"Nenhum save valido.", "No valid save."},
+    {"Equipamento atualizado.", "Equipment updated."},
+    {"Compra realizada.", "Purchase completed."},
+    {"Ouro insuficiente.", "Not enough gold."},
+    {"Derrota! O grupo retornou ao inicio.", "Defeat! The party returned to the start."},
+    {"Nova rodada: escolha as acoes por velocidade.", "New round: choose actions in speed order."},
+    {"O grupo fugiu.", "The party escaped."},
+    {"PORTUGUES", "PORTUGUESE"},
+    {"INGLES", "ENGLISH"},
+    {"(NENHUM)", "(NONE)"},
+    {"VIDA", "HP"},
+    {"MAGIA", "MP"},
+    {"ATAQUE", "ATTACK"},
+    {"DEFESA", "DEFENSE"},
+    {"PODER MAGICO", "MAGIC POWER"},
+    {"RESISTENCIA", "RESISTANCE"},
+    {"VELOCIDADE", "SPEED"},
+    {"SORTE", "LUCK"},
+    {"CLASSE", "CLASS"},
+    {"ESTADO", "STATE"},
+    {"ANIMACAO", "ANIMATION"},
+    {"MAPA", "MAP"},
+    {"EVENTO", "EVENT"},
+    {"INIMIGO", "ENEMY"},
+    {"AUDIO", "AUDIO"},
+    {"LOJA", "SHOP"},
+    {"MISSAO", "QUEST"},
+    {"SPRITE", "SPRITE"},
+    {"OURO", "GOLD"},
+    {"EXPERIENCIA", "EXPERIENCE"},
+    {"QUANTIDADE", "QUANTITY"},
+    {"PRECO", "PRICE"},
+    {"ALVO", "TARGET"},
+};
+
+void idioma_definir(IdiomaMythara idioma) {
+    idioma_ativo = idioma == IDIOMA_INGLES ? IDIOMA_INGLES : IDIOMA_PORTUGUES;
+}
+
+IdiomaMythara idioma_obter(void) {
+    return idioma_ativo;
+}
+
+const char *idioma_traduzir(const char *portugues) {
+    if (!portugues || idioma_ativo == IDIOMA_PORTUGUES)
+        return portugues;
+    for (size_t i = 0; i < sizeof(traducoes) / sizeof(traducoes[0]); ++i)
+        if (!strcmp(portugues, traducoes[i].portugues))
+            return traducoes[i].ingles;
+    return portugues;
+}

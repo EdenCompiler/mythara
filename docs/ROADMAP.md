@@ -6,7 +6,7 @@ O roadmap registra direções possíveis, não promessas de prazo.
 
 - Abas reordenáveis e workspaces salvos pelo usuário.
 - Busca global por mapas, eventos, recursos e IDs.
-- Validador de projeto com navegação direta para cada problema.
+- Relatório completo do validador com múltiplos erros e avisos simultâneos.
 - Histórico com descrições específicas por operação.
 - Editor de animações com timeline e onion skin.
 - Editor de diálogos com retratos e pré-visualização.
@@ -17,12 +17,10 @@ O roadmap registra direções possíveis, não promessas de prazo.
 - Batalhas com efeitos visuais e filas de ações.
 - Pathfinding para NPCs.
 - Clima, iluminação e transições entre mapas.
-- Localização de textos e banco de traduções.
+- Catálogo de traduções criado pelo autor para diálogos e bancos do jogo.
 
 ## Infraestrutura
 
-- Formato binário independente de arquitetura.
-- Conversor explícito entre versões de projeto.
 - Testes de framebuffer com imagens de referência.
 - Builds reproduzíveis e releases assinadas.
-- API estável para extensões compiladas ou scripts.
+- Fuzzing contínuo dos leitores de projeto, save, tema e recursos.

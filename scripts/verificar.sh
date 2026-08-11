@@ -2,7 +2,7 @@
 set -eu
 
 if command -v clang-format >/dev/null 2>&1; then
-    clang-format --dry-run --Werror src/mythara.c
+    clang-format --dry-run --Werror src/*.c src/*.h src/interno/*.inc
 else
     printf 'Aviso: clang-format não encontrado; formatação não verificada.\n' >&2
 fi

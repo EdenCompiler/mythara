@@ -4,8 +4,8 @@
 
 | Versão | Suporte |
 |---|---|
-| 3.x | Sim |
-| 2.x e anteriores | Não |
+| 4.x | Sim |
+| 3.x e anteriores | Apenas migração de projetos v3 |
 
 ## Relatando uma vulnerabilidade
 
